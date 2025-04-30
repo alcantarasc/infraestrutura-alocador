@@ -17,13 +17,13 @@ install:
 	@echo "Airflow services installed successfully"
 
 start:
-	@bash ../script/airflow-manager.sh start
+	@bash ../script/airflow_manager.sh start
 
 stop:
-	@bash ../script/airflow-manager.sh stop
+	@bash ../script/airflow_manager.sh stop
 
 restart:
-	@bash ../script/airflow-manager.sh restart
+	@bash ../script/airflow_manager.sh restart
 
 status:
 	@systemctl status airflow-webserver.service

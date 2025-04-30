@@ -2,7 +2,7 @@
 
 install:
 	@echo "Installing Splunk..."
-	@sudo bash script/install_splunk.sh
+	@sudo bash ../script/install_splunk.sh
 
 start:
 	@echo "Starting Splunk..."
