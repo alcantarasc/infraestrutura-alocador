@@ -35,3 +35,14 @@ status:
 logs:
 	@journalctl -u airflow-webserver.service -f &
 	@journalctl -u airflow-scheduler.service -f
+
+clean:
+	@bash ../script/airflow_manager.sh stop
+	@sudo systemctl stop airflow-webserver.service
+	@sudo systemctl stop airflow-scheduler.service
+	@sudo systemctl disable airflow-webserver.service
+	@sudo systemctl disable airflow-scheduler.service
+	@sudo rm /etc/systemd/system/airflow-webserver.service
+	@sudo rm /etc/systemd/system/airflow-scheduler.service
+	@sudo rm -rf $(AIRFLOW_HOME)
+	@echo "Airflow services uninstalled successfully"
