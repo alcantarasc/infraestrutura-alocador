@@ -10,6 +10,11 @@ install:
 	$(VENV_PATH)/bin/pip install "apache-airflow[celery]==3.0.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
 	@echo "Initializing Airflow database..."
 	$(VENV_PATH)/bin/airflow db migrate
+	@echo "Installing Airflow service files..."
+	sudo cp ../services/airflow-webserver.service /etc/systemd/system/
+	sudo cp ../services/airflow-scheduler.service /etc/systemd/system/
+	sudo systemctl daemon-reload
+	@echo "Airflow services installed successfully"
 
 start:
 	@bash ../script/airflow-manager.sh start
