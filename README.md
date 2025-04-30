@@ -17,3 +17,7 @@ Airflow:
 Splunk: 
     super: hawk
     senha: pegandoAVisao
+
+Postgres:
+    lucas
+    kappa123test
