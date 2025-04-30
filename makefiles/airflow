@@ -16,6 +16,9 @@ install:
 	sudo systemctl daemon-reload
 	@echo "Airflow services installed successfully"
 
+	@echo "Installing Airflow requirements..."
+	$(VENV_PATH)/bin/pip install -r ../airflow-requirements.txt
+
 start:
 	@bash ../script/airflow_manager.sh start
 
