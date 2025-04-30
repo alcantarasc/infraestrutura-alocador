@@ -1,0 +1,37 @@
+.PHONY: install start stop restart status logs
+
+AIRFLOW_HOME := $(HOME)/airflow
+VENV_PATH := $(AIRFLOW_HOME)/venv
+
+install:
+	@echo "Creating Airflow virtual environment..."
+	python -m venv $(VENV_PATH)
+	@echo "Installing Airflow requirements..."
+	$(VENV_PATH)/bin/pip install pip install "apache-airflow[celery]==3.0.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
+	@echo "Initializing Airflow database..."
+	$(VENV_PATH)/bin/airflow db init
+	@echo "Creating Airflow user..."
+	$(VENV_PATH)/bin/airflow users create \
+		--username alocador \
+		--firstname Admin \
+		--lastname Alocador \
+		--role Admin \
+		--email alcantarasc@gmail.com \
+		--password boraPagarOsBoleto
+
+start:
+	@bash script/airflow-manager.sh start
+
+stop:
+	@bash script/airflow-manager.sh stop
+
+restart:
+	@bash script/airflow-manager.sh restart
+
+status:
+	@systemctl status airflow-webserver.service
+	@systemctl status airflow-scheduler.service
+
+logs:
+	@journalctl -u airflow-webserver.service -f &
+	@journalctl -u airflow-scheduler.service -f

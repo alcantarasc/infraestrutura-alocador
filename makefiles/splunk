@@ -1,0 +1,23 @@
+.PHONY: install start stop restart status logs
+
+install:
+	@echo "Installing Splunk..."
+	@sudo bash script/install_splunk.sh
+
+start:
+	@echo "Starting Splunk..."
+	@sudo systemctl start splunk.service
+
+stop:
+	@echo "Stopping Splunk..."
+	@sudo systemctl stop splunk.service
+
+restart:
+	@echo "Restarting Splunk..."
+	@sudo systemctl restart splunk.service
+
+status:
+	@systemctl status splunk.service
+
+logs:
+	@journalctl -u splunk.service -f
