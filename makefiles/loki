@@ -11,7 +11,7 @@ install-loki:
 	sudo apt-get update
 	@echo "Installing Loki and Promtail..."
 	sudo apt-get install -y loki promtail
-
+	
 configure-loki:
 	@echo "Creating Loki configuration directory..."
 	sudo mkdir -p /etc/loki
@@ -19,6 +19,9 @@ configure-loki:
 	sudo cp ../loki-config.yaml /etc/loki/config.yaml
 	@echo "Creating data directories..."
 	sudo mkdir -p /tmp/loki/chunks
+	@echo "Creating loki user and group..."
+	sudo groupadd --system loki || true
+	sudo useradd --system -g loki loki || true
 	@echo "Setting permissions..."
 	sudo chown -R loki:loki /tmp/loki
 	@echo "Restarting Loki service..."
