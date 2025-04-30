@@ -5,7 +5,7 @@ VENV_PATH := $(AIRFLOW_HOME)/venv
 
 install:
 	@echo "Creating Airflow virtual environment..."
-	python -m venv $(VENV_PATH)
+	python3 -m venv $(VENV_PATH)
 	@echo "Installing Airflow requirements..."
 	$(VENV_PATH)/bin/pip install pip install "apache-airflow[celery]==3.0.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
 	@echo "Initializing Airflow database..."
