@@ -9,15 +9,7 @@ install:
 	@echo "Installing Airflow requirements..."
 	$(VENV_PATH)/bin/pip install "apache-airflow[celery]==3.0.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
 	@echo "Initializing Airflow database..."
-	$(VENV_PATH)/bin/airflow initdb
-	@echo "Creating Airflow user..."
-	$(VENV_PATH)/bin/airflow users create \
-		--username alocador \
-		--firstname Admin \
-		--lastname Alocador \
-		--role Admin \
-		--email alcantarasc@gmail.com \
-		--password boraPagarOsBoleto
+	$(VENV_PATH)/bin/airflow db migrate
 
 start:
 	@bash script/airflow-manager.sh start

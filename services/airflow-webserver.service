@@ -9,7 +9,7 @@ Environment="AIRFLOW_HOME=/home/%i/airflow"
 User=%i
 Group=%i
 Type=simple
-ExecStart=/home/%i/airflow/venv/bin/airflow webserver --port 8080 --hostname 0.0.0.0
+ExecStart=/home/%i/airflow/venv/bin/airflow api-server --port 8080
 Restart=on-failure
 RestartSec=5s
 PrivateTmp=true
