@@ -1,0 +1,12 @@
+[Unit]
+Description=OpenSearch Dashboards Service
+After=network.target opensearch.service
+
+[Service]
+Type=simple
+User=${USER}
+ExecStart=${PWD}/opensearch-dashboards/bin/opensearch-dashboards
+Restart=always
+
+[Install]
+WantedBy=multi-user.target 
