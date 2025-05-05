@@ -45,32 +45,72 @@ install-opensearch:
 configure-opensearch:
 	@echo "Configurando OpenSearch..."
 	# Configurar opensearch.yml
-	sed -i 's/network.host: 0.0.0.0/network.host: 0.0.0.0/' /etc/opensearch/opensearch.yml
-	sed -i 's/http.port: 9200/http.port: $(PORT)/' /etc/opensearch/opensearch.yml
-	echo "plugins.security.disabled: false" >> /etc/opensearch/opensearch.yml
-	echo "discovery.type: single-node" >> /etc/opensearch/opensearch.yml
-	echo "plugins.security.ssl.http.enabled: false" >> /etc/opensearch/opensearch.yml
-	echo "plugins.security.ssl.transport.enabled: false" >> /etc/opensearch/opensearch.yml
-	echo "node.name: opensearch-node1" >> /etc/opensearch/opensearch.yml
-	echo "cluster.name: opensearch-cluster" >> /etc/opensearch/opensearch.yml
-	echo "bootstrap.memory_lock: true" >> /etc/opensearch/opensearch.yml
+	cat > /etc/opensearch/opensearch.yml << EOF
+network.host: 0.0.0.0
+http.port: $(PORT)
+discovery.type: single-node
+node.name: opensearch-node1
+cluster.name: opensearch-cluster
+
+# Security settings
+plugins.security.disabled: false
+plugins.security.ssl.http.enabled: false
+plugins.security.ssl.transport.enabled: false
+plugins.security.allow_default_init_securityindex: true
+plugins.security.allow_unsafe_democertificates: true
+plugins.security.audit.type: internal_opensearch
+
+# Performance settings
+bootstrap.memory_lock: true
+thread_pool.write.queue_size: 1000
+indices.memory.index_buffer_size: 10%
+indices.queries.cache.size: 10%
+
+# Disable unnecessary features
+action.auto_create_index: false
+plugins.ml.enabled: false
+plugins.alerting.enabled: false
+plugins.index_state_management.enabled: false
+plugins.security_analytics.enabled: false
+
+# Node settings
+node.master: true
+node.data: true
+node.ingest: true
+EOF
 
 	# Configurar JVM options
-	echo "-Xms512m" > /etc/opensearch/jvm.options.d/heap.options
-	echo "-Xmx512m" >> /etc/opensearch/jvm.options.d/heap.options
+	mkdir -p /etc/opensearch/jvm.options.d/
+	cat > /etc/opensearch/jvm.options.d/jvm.options << EOF
+-Xms512m
+-Xmx512m
+-XX:+UseG1GC
+-XX:G1ReservePercent=25
+-XX:InitiatingHeapOccupancyPercent=30
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/opensearch
+EOF
 
 	# Configurar system limits
 	mkdir -p /etc/systemd/system/opensearch.service.d/
-	echo "[Service]" > /etc/systemd/system/opensearch.service.d/override.conf
-	echo "LimitMEMLOCK=infinity" >> /etc/systemd/system/opensearch.service.d/override.conf
-	echo "LimitNOFILE=65535" >> /etc/systemd/system/opensearch.service.d/override.conf
+	cat > /etc/systemd/system/opensearch.service.d/override.conf << EOF
+[Service]
+LimitMEMLOCK=infinity
+LimitNOFILE=65535
+TimeoutStartSec=180
+TimeoutStopSec=180
+Restart=always
+RestartSec=45
+EOF
 
 	# Configurar opensearch-dashboards.yml
-	sed -i 's/server.host: "localhost"/server.host: "0.0.0.0"/' /etc/opensearch-dashboards/opensearch_dashboards.yml
-	sed -i 's/server.port: 5601/server.port: $(PORT)/' /etc/opensearch-dashboards/opensearch_dashboards.yml
-	sed -i 's/opensearch.hosts: \["http:\/\/localhost:9200"\]/opensearch.hosts: \["http:\/\/localhost:$(PORT)"\]/' /etc/opensearch-dashboards/opensearch_dashboards.yml
-	echo "opensearch_security.ssl.verification_mode: none" >> /etc/opensearch-dashboards/opensearch_dashboards.yml
-	echo "opensearch.ssl.verificationMode: none" >> /etc/opensearch-dashboards/opensearch_dashboards.yml
+	cat > /etc/opensearch-dashboards/opensearch_dashboards.yml << EOF
+server.host: "0.0.0.0"
+server.port: $(PORT)
+opensearch.hosts: ["http://localhost:$(PORT)"]
+opensearch_security.ssl.verification_mode: none
+opensearch.ssl.verificationMode: none
+EOF
 
 	# Configurar credenciais
 	cd /usr/share/opensearch/plugins/opensearch-security/tools && \
@@ -82,11 +122,17 @@ configure-opensearch:
 	# Ajustar permissões
 	chown -R opensearch:opensearch /etc/opensearch
 	chown -R opensearch-dashboards:opensearch-dashboards /etc/opensearch-dashboards
+	chmod -R 2750 /etc/opensearch
+	chmod -R 2750 /etc/opensearch-dashboards
 
 	# Reiniciar serviços
 	systemctl daemon-reload
-	systemctl restart opensearch
-	systemctl restart opensearch-dashboards
+	systemctl stop opensearch || true
+	systemctl stop opensearch-dashboards || true
+	sleep 5
+	systemctl start opensearch
+	sleep 30
+	systemctl start opensearch-dashboards
 
 uninstall-opensearch:
 	@echo "Desinstalando OpenSearch..."
