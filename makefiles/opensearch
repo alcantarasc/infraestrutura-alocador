@@ -21,20 +21,26 @@ all: install-opensearch configure-opensearch
 install-opensearch:
 	@echo "Instalando OpenSearch..."
 	# Instalar dependências necessárias
-	apt-get update
-	apt-get install -y wget default-jre
+	apt-get update || { echo "Failed to update package list"; exit 1; }
+	DEBIAN_FRONTEND=noninteractive apt-get install -y wget default-jre || { echo "Failed to install dependencies"; exit 1; }
 
 	# Download e instalação do OpenSearch
 	if [ ! -f opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb ]; then \
-		wget https://artifacts.opensearch.org/releases/bundle/opensearch/$(OPENSEARCH_VERSION)/opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb; \
+		wget https://artifacts.opensearch.org/releases/bundle/opensearch/$(OPENSEARCH_VERSION)/opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb || { echo "Failed to download OpenSearch"; exit 1; }; \
 	fi
-	dpkg -i opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb
+	DEBIAN_FRONTEND=noninteractive dpkg -i opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb || { \
+		apt-get install -f -y; \
+		DEBIAN_FRONTEND=noninteractive dpkg -i opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb || { echo "Failed to install OpenSearch"; exit 1; }; \
+	}
 
 	# Download e instalação do OpenSearch Dashboards
 	if [ ! -f opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb ]; then \
-		wget https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/$(OPENSEARCH_VERSION)/opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb; \
+		wget https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/$(OPENSEARCH_VERSION)/opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb || { echo "Failed to download OpenSearch Dashboards"; exit 1; }; \
 	fi
-	dpkg -i opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb
+	DEBIAN_FRONTEND=noninteractive dpkg -i opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb || { \
+		apt-get install -f -y; \
+		DEBIAN_FRONTEND=noninteractive dpkg -i opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb || { echo "Failed to install OpenSearch Dashboards"; exit 1; }; \
+	}
 
 configure-opensearch:
 	@echo "Configurando OpenSearch..."
