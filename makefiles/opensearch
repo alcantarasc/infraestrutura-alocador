@@ -5,73 +5,73 @@ OPENSEARCH_VERSION=2.19.2
 SERVICE_NAME=opensearch
 PORT=8070
 USERNAME=hawk
-PASSWORD=pegandoAVisao
+PASSWORD=pegaAVisao1@
 SERVICES_DIR=services
 
-all: install-opensearch configure-opensearch create-service
+all: install-opensearch configure-opensearch
 	@echo "OpenSearch instalado e configurado com sucesso!"
 	@echo "Usuário: $(USERNAME)"
 	@echo "Senha: $(PASSWORD)"
 	@echo "Porta: $(PORT)"
 	@echo "Para iniciar os serviços, execute:"
-	@echo "  sudo systemctl start $(SERVICE_NAME)"
-	@echo "  sudo systemctl start $(SERVICE_NAME)-dashboards"
+	@echo "  sudo systemctl start opensearch"
+	@echo "  sudo systemctl start opensearch-dashboards"
 	@echo "Acesse o dashboard em: http://localhost:$(PORT)"
 
 install-opensearch:
 	@echo "Instalando OpenSearch..."
+	# Instalar dependências necessárias
+	apt-get update
+	apt-get install -y wget
+
 	# Download e instalação do OpenSearch
-	wget https://artifacts.opensearch.org/releases/bundle/opensearch/$(OPENSEARCH_VERSION)/opensearch-$(OPENSEARCH_VERSION)-linux-x64.tar.gz
-	tar -xzf opensearch-$(OPENSEARCH_VERSION)-linux-x64.tar.gz
-	rm opensearch-$(OPENSEARCH_VERSION)-linux-x64.tar.gz
-	mv opensearch-$(OPENSEARCH_VERSION) opensearch
+	wget https://artifacts.opensearch.org/releases/bundle/opensearch/$(OPENSEARCH_VERSION)/opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb
+	dpkg -i opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb
+	rm opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb
 
 	# Download e instalação do OpenSearch Dashboards
-	wget https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/$(OPENSEARCH_VERSION)/opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.tar.gz
-	tar -xzf opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.tar.gz
-	rm opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.tar.gz
-	mv opensearch-dashboards-$(OPENSEARCH_VERSION) opensearch-dashboards
+	wget https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/$(OPENSEARCH_VERSION)/opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb
+	dpkg -i opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb
+	rm opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb
 
 configure-opensearch:
 	@echo "Configurando OpenSearch..."
 	# Configurar opensearch.yml
-	sed -i 's/network.host: 0.0.0.0/network.host: localhost/' opensearch/config/opensearch.yml
-	sed -i 's/http.port: 9200/http.port: $(PORT)/' opensearch/config/opensearch.yml
-	echo "plugins.security.disabled: false" >> opensearch/config/opensearch.yml
-	echo "discovery.type: single-node" >> opensearch/config/opensearch.yml
+	sed -i 's/network.host: 0.0.0.0/network.host: 0.0.0.0/' /etc/opensearch/opensearch.yml
+	sed -i 's/http.port: 9200/http.port: $(PORT)/' /etc/opensearch/opensearch.yml
+	echo "plugins.security.disabled: false" >> /etc/opensearch/opensearch.yml
+	echo "discovery.type: single-node" >> /etc/opensearch/opensearch.yml
+	echo "plugins.security.ssl.http.enabled: false" >> /etc/opensearch/opensearch.yml
+	echo "plugins.security.ssl.transport.enabled: false" >> /etc/opensearch/opensearch.yml
 
 	# Configurar opensearch-dashboards.yml
-	sed -i 's/server.port: 5601/server.port: $(PORT)/' opensearch-dashboards/config/opensearch-dashboards.yml
-	sed -i 's/opensearch.hosts: \["http:\/\/localhost:9200"\]/opensearch.hosts: \["http:\/\/localhost:$(PORT)"\]/' opensearch-dashboards/config/opensearch-dashboards.yml
+	sed -i 's/server.host: "localhost"/server.host: "0.0.0.0"/' /etc/opensearch-dashboards/opensearch_dashboards.yml
+	sed -i 's/server.port: 5601/server.port: $(PORT)/' /etc/opensearch-dashboards/opensearch_dashboards.yml
+	sed -i 's/opensearch.hosts: \["http:\/\/localhost:9200"\]/opensearch.hosts: \["http:\/\/localhost:$(PORT)"\]/' /etc/opensearch-dashboards/opensearch_dashboards.yml
+	echo "opensearch_security.ssl.verification_mode: none" >> /etc/opensearch-dashboards/opensearch_dashboards.yml
+	echo "opensearch.ssl.verificationMode: none" >> /etc/opensearch-dashboards/opensearch_dashboards.yml
 
 	# Configurar credenciais
-	cd opensearch/plugins/opensearch-security/tools && \
+	cd /usr/share/opensearch/plugins/opensearch-security/tools && \
 	./hash.sh -p $(PASSWORD) > hashed_password.txt && \
 	HASHED_PASSWORD=$$(cat hashed_password.txt) && \
-	sed -i "s/admin:admin/$(USERNAME):$$HASHED_PASSWORD/" ../../../config/opensearch-security/internal_users.yml
+	sed -i "s/admin:admin/$(USERNAME):$$HASHED_PASSWORD/" /etc/opensearch/opensearch-security/internal_users.yml
 
-create-service:
-	@echo "Criando serviço do OpenSearch..."
-	# Substituir variáveis nos arquivos de serviço
-	sed "s|\$${USER}|$${USER}|g; s|\$${PWD}|$${PWD}|g" $(SERVICES_DIR)/$(SERVICE_NAME).service > /etc/systemd/system/$(SERVICE_NAME).service
-	sed "s|\$${USER}|$${USER}|g; s|\$${PWD}|$${PWD}|g" $(SERVICES_DIR)/$(SERVICE_NAME)-dashboards.service > /etc/systemd/system/$(SERVICE_NAME)-dashboards.service
+	# Ajustar permissões
+	chown -R opensearch:opensearch /etc/opensearch
+	chown -R opensearch-dashboards:opensearch-dashboards /etc/opensearch-dashboards
 
-	# Recarregar daemon e habilitar serviços
-	systemctl daemon-reload
-	systemctl enable $(SERVICE_NAME)
-	systemctl enable $(SERVICE_NAME)-dashboards
+	# Reiniciar serviços
+	systemctl restart opensearch
+	systemctl restart opensearch-dashboards
 
-remove-service:
-	@echo "Removendo serviços do OpenSearch..."
-	systemctl stop $(SERVICE_NAME) || true
-	systemctl stop $(SERVICE_NAME)-dashboards || true
-	systemctl disable $(SERVICE_NAME) || true
-	systemctl disable $(SERVICE_NAME)-dashboards || true
-	rm -f /etc/systemd/system/$(SERVICE_NAME).service
-	rm -f /etc/systemd/system/$(SERVICE_NAME)-dashboards.service
-	systemctl daemon-reload
-
-uninstall-opensearch: remove-service
+uninstall-opensearch:
 	@echo "Desinstalando OpenSearch..."
-	rm -rf opensearch
-	rm -rf opensearch-dashboards 
+	systemctl stop opensearch || true
+	systemctl stop opensearch-dashboards || true
+	apt-get remove -y opensearch opensearch-dashboards
+	apt-get purge -y opensearch opensearch-dashboards
+	rm -rf /etc/opensearch
+	rm -rf /etc/opensearch-dashboards
+	rm -rf /var/lib/opensearch
+	rm -rf /var/lib/opensearch-dashboards 
