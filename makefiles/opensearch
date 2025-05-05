@@ -76,13 +76,15 @@ configure-opensearch:
 	cd /usr/share/opensearch/plugins/opensearch-security/tools && \
 	./hash.sh -p $(PASSWORD) > hashed_password.txt && \
 	HASHED_PASSWORD=$$(cat hashed_password.txt) && \
-	sed -i "s/admin:admin/$(USERNAME):$$HASHED_PASSWORD/" /etc/opensearch/opensearch-security/internal_users.yml
+	cp /etc/opensearch/opensearch-security/internal_users.yml /etc/opensearch/opensearch-security/internal_users.yml.bak && \
+	awk -v user="$(USERNAME)" -v pwd="$$HASHED_PASSWORD" '{ if ($$0 ~ /^admin:/) printf "%s:%s\n", user, pwd; else print $$0; }' /etc/opensearch/opensearch-security/internal_users.yml.bak > /etc/opensearch/opensearch-security/internal_users.yml
 
 	# Ajustar permissões
 	chown -R opensearch:opensearch /etc/opensearch
 	chown -R opensearch-dashboards:opensearch-dashboards /etc/opensearch-dashboards
 
 	# Reiniciar serviços
+	systemctl daemon-reload
 	systemctl restart opensearch
 	systemctl restart opensearch-dashboards
 
