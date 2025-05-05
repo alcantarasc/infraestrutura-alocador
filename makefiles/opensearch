@@ -22,17 +22,19 @@ install-opensearch:
 	@echo "Instalando OpenSearch..."
 	# Instalar dependências necessárias
 	apt-get update
-	apt-get install -y wget
+	apt-get install -y wget default-jre
 
 	# Download e instalação do OpenSearch
-	wget https://artifacts.opensearch.org/releases/bundle/opensearch/$(OPENSEARCH_VERSION)/opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb
+	if [ ! -f opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb ]; then \
+		wget https://artifacts.opensearch.org/releases/bundle/opensearch/$(OPENSEARCH_VERSION)/opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb; \
+	fi
 	dpkg -i opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb
-	rm opensearch-$(OPENSEARCH_VERSION)-linux-x64.deb
 
 	# Download e instalação do OpenSearch Dashboards
-	wget https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/$(OPENSEARCH_VERSION)/opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb
+	if [ ! -f opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb ]; then \
+		wget https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/$(OPENSEARCH_VERSION)/opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb; \
+	fi
 	dpkg -i opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb
-	rm opensearch-dashboards-$(OPENSEARCH_VERSION)-linux-x64.deb
 
 configure-opensearch:
 	@echo "Configurando OpenSearch..."
