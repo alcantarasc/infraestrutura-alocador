@@ -45,6 +45,19 @@ configure-opensearch:
 	echo "discovery.type: single-node" >> /etc/opensearch/opensearch.yml
 	echo "plugins.security.ssl.http.enabled: false" >> /etc/opensearch/opensearch.yml
 	echo "plugins.security.ssl.transport.enabled: false" >> /etc/opensearch/opensearch.yml
+	echo "node.name: opensearch-node1" >> /etc/opensearch/opensearch.yml
+	echo "cluster.name: opensearch-cluster" >> /etc/opensearch/opensearch.yml
+	echo "bootstrap.memory_lock: true" >> /etc/opensearch/opensearch.yml
+
+	# Configurar JVM options
+	echo "-Xms512m" > /etc/opensearch/jvm.options.d/heap.options
+	echo "-Xmx512m" >> /etc/opensearch/jvm.options.d/heap.options
+
+	# Configurar system limits
+	mkdir -p /etc/systemd/system/opensearch.service.d/
+	echo "[Service]" > /etc/systemd/system/opensearch.service.d/override.conf
+	echo "LimitMEMLOCK=infinity" >> /etc/systemd/system/opensearch.service.d/override.conf
+	echo "LimitNOFILE=65535" >> /etc/systemd/system/opensearch.service.d/override.conf
 
 	# Configurar opensearch-dashboards.yml
 	sed -i 's/server.host: "localhost"/server.host: "0.0.0.0"/' /etc/opensearch-dashboards/opensearch_dashboards.yml
