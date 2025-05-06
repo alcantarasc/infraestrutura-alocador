@@ -4,8 +4,8 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin123
+      - POSTGRES_USER=lucas
+      - POSTGRES_PASSWORD=kappa123test
       - POSTGRES_DB=app_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -14,7 +14,7 @@ services:
     networks:
       - app_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin"]
+      test: ["CMD-SHELL", "pg_isready -U lucas"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,6 +22,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --requirepass redis_secure_password123
     ports:
       - "6379:6379"
     volumes:
@@ -29,7 +30,7 @@ services:
     networks:
       - app_network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "redis_secure_password123", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,7 +42,8 @@ services:
       - bootstrap.memory_lock=true
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
       - "DISABLE_INSTALL_DEMO_CONFIG=true"
-      - "DISABLE_SECURITY_PLUGIN=true"
+      - "DISABLE_SECURITY_PLUGIN=false"
+      - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=opensearch_secure_123"
       - "network.host=0.0.0.0"
       - "network.publish_host=0.0.0.0"
     ulimits:
@@ -55,22 +57,41 @@ services:
       - "0.0.0.0:9200:9200"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
+      - ./opensearch/internal_users.yml:/usr/share/opensearch/config/opensearch-security/internal_users.yml:ro
     networks:
       - app_network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -u admin:opensearch_secure_123 -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    ports:
+      - "0.0.0.0:5601:5601"
+    environment:
+      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
+      - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=false"
+      - "OPENSEARCH_USERNAME=admin"
+      - "OPENSEARCH_PASSWORD=opensearch_secure_123"
+      - "SERVER_HOST=0.0.0.0"
+    networks:
+      - app_network
+    depends_on:
+      opensearch:
+        condition: service_healthy
 
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql://admin:admin123@postgres:5432/app_db
-      - REDIS_URL=redis://redis:6379
-      - OPENSEARCH_URL=http://opensearch:9200
+      - DATABASE_URL=postgresql://lucas:kappa123test@postgres:5432/app_db
+      - REDIS_URL=redis://:redis_secure_password123@redis:6379
+      - OPENSEARCH_URL=http://admin:opensearch_secure_123@opensearch:9200
+      - API_USER=api_user
+      - API_PASSWORD=api_secure_456
     ports:
       - "0.0.0.0:8000:8000"
     depends_on:
@@ -90,6 +111,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
     depends_on:
       - api
     networks:
