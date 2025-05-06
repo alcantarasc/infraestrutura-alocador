@@ -114,19 +114,6 @@ services:
       retries: 3
       start_period: 40s
 
-  nginx:
-    image: nginx:1.25-alpine
-    ports:
-      - "0.0.0.0:80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
-    depends_on:
-      - api
-    networks:
-      - app_network
-
 volumes:
   postgres_data:
   redis_data:
