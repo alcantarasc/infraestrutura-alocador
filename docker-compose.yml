@@ -46,11 +46,15 @@ services:
       - "DISABLE_INSTALL_DEMO_CONFIG=true"
       - "DISABLE_SECURITY_PLUGIN=false"
       - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=opensearch_secure_123"
-      - "plugins.security.ssl.http.enabled=false"
+      - "plugins.security.ssl.http.enabled=true"
+      - "plugins.security.ssl.http.pemcert_filepath=certs/node.pem"
+      - "plugins.security.ssl.http.pemkey_filepath=certs/node-key.pem"
+      - "plugins.security.ssl.http.pemtrustedcas_filepath=certs/root-ca.pem"
       - "plugins.security.ssl.transport.enabled=true"
+      - "plugins.security.ssl.transport.pemcert_filepath=certs/node.pem"
+      - "plugins.security.ssl.transport.pemkey_filepath=certs/node-key.pem"
+      - "plugins.security.ssl.transport.pemtrustedcas_filepath=certs/root-ca.pem"
       - "plugins.security.ssl.transport.enforce_hostname_verification=false"
-      - "plugins.security.ssl.transport.truststore.password=changeit"
-      - "plugins.security.ssl.transport.keystore.password=changeit"
       - "plugins.security.allow_unsafe_democertificates=true"
       - "plugins.security.allow_default_init_securityindex=true"
       - "plugins.security.nodes_dn_dynamic_config_enabled=true"
@@ -66,10 +70,11 @@ services:
       - "0.0.0.0:9600:9600"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
+      - ./certs:/usr/share/opensearch/config/certs
     networks:
       - app_network
     healthcheck:
-      test: ["CMD-SHELL", "curl -u admin:opensearch_secure_123 -f http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -k -u admin:opensearch_secure_123 -f https://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -79,11 +84,17 @@ services:
     ports:
       - "0.0.0.0:5601:5601"
     environment:
-      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
+      - 'OPENSEARCH_HOSTS=["https://opensearch:9200"]'
       - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=false"
       - "OPENSEARCH_USERNAME=admin"
       - "OPENSEARCH_PASSWORD=opensearch_secure_123"
       - "SERVER_HOST=0.0.0.0"
+      - "SERVER_SSL_ENABLED=true"
+      - "SERVER_SSL_CERTIFICATE=/usr/share/opensearch-dashboards/config/certs/node.pem"
+      - "SERVER_SSL_KEY=/usr/share/opensearch-dashboards/config/certs/node-key.pem"
+      - "OPENSEARCH_SSL_VERIFICATIONMODE=none"
+    volumes:
+      - ./certs:/usr/share/opensearch-dashboards/config/certs
     networks:
       - app_network
     depends_on:
@@ -97,7 +108,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://lucas:kappa123test@postgres:5432/app_db
       - REDIS_URL=redis://:redis_secure_password123@redis:6379
-      - OPENSEARCH_URL=http://admin:opensearch_secure_123@opensearch:9200
+      - OPENSEARCH_URL=https://admin:opensearch_secure_123@opensearch:9200
+      - OPENSEARCH_SSL_VERIFY=false
       - API_USER=api_user
       - API_PASSWORD=api_secure_456
     ports:
