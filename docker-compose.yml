@@ -47,6 +47,11 @@ services:
       - "DISABLE_SECURITY_PLUGIN=false"
       - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=opensearch_secure_123"
       - "plugins.security.ssl.http.enabled=false"
+      - "plugins.security.ssl.transport.enabled=false"
+      - "plugins.security.ssl.http.pemcert_filepath=esnode.pem"
+      - "plugins.security.ssl.http.pemkey_filepath=esnode-key.pem"
+      - "plugins.security.ssl.transport.pemcert_filepath=esnode.pem"
+      - "plugins.security.ssl.transport.pemkey_filepath=esnode-key.pem"
       - "plugins.security.allow_unsafe_democertificates=true"
       - "plugins.security.allow_default_init_securityindex=true"
       - "plugins.security.nodes_dn_dynamic_config_enabled=true"
@@ -58,8 +63,8 @@ services:
         soft: 65536
         hard: 65536
     ports:
-      - "9200:9200"
-      - "9600:9600"
+      - "0.0.0.0:9200:9200"
+      - "0.0.0.0:9600:9600"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
     networks:
