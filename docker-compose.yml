@@ -38,14 +38,18 @@ services:
   opensearch:
     image: opensearchproject/opensearch:latest
     environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
       - discovery.type=single-node
       - bootstrap.memory_lock=true
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
       - "DISABLE_INSTALL_DEMO_CONFIG=true"
       - "DISABLE_SECURITY_PLUGIN=false"
       - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=opensearch_secure_123"
-      - "network.host=0.0.0.0"
-      - "network.publish_host=0.0.0.0"
+      - "plugins.security.ssl.http.enabled=false"
+      - "plugins.security.allow_unsafe_democertificates=true"
+      - "plugins.security.allow_default_init_securityindex=true"
+      - "plugins.security.nodes_dn_dynamic_config_enabled=true"
     ulimits:
       memlock:
         soft: -1
@@ -54,10 +58,10 @@ services:
         soft: 65536
         hard: 65536
     ports:
-      - "0.0.0.0:9200:9200"
+      - "9200:9200"
+      - "9600:9600"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
-      - ./opensearch/internal_users.yml:/usr/share/opensearch/config/opensearch-security/internal_users.yml:ro
     networks:
       - app_network
     healthcheck:
