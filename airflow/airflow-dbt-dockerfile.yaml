@@ -1,0 +1,13 @@
+ARG AIRFLOW_VERSION=3.0.0
+
+
+FROM apache/airflow:${AIRFLOW_VERSION}
+COPY requirements.txt /
+RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" -r /requirements.txt
+
+RUN python -m venv dbt_venv && source dbt_venv/bin/activate && \
+    pip install --no-cache-dir dbt-postgres && deactivate
+  
+
+CMD ["airflow", "webserver", "-p", "8080"]
+CMD ["airflow", "scheduler"]
