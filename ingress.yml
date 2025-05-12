@@ -26,4 +26,4 @@ metadata:
   namespace: elk
 type: Opaque
 data:
-  auth: $(echo -n 'kibana:quibeCRU' | base64)
+  auth: a2liYW5hOnF1aWJlQ1JV  # echo -n 'kibana:quibeCRU' | base64
