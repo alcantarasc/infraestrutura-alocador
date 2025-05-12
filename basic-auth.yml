@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: basic-auth
+  namespace: elk
+type: Opaque
+data:
+  auth: YWRtaW46JGFwcjEkLk5FUU1vYSQvVjRlLkFjTy5tQ3YuZ01KL3F6UER3bS8K # admin:admin (gerar seu próprio com htpasswd) 
