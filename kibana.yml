@@ -27,7 +27,7 @@ spec:
         - name: ELASTICSEARCH_HOSTS
           value: "http://elasticsearch.elk.svc.cluster.local:9200"
         - name: ELASTICSEARCH_USERNAME
-          value: "chiclete"
+          value: "elastic"
         - name: ELASTICSEARCH_PASSWORD
           value: "mereHISTE"
         - name: KIBANA_SERVER_PUBLICBASEURL

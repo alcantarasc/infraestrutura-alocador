@@ -20,7 +20,7 @@ deploy-elk:
 # Forward Kibana port
 forward-kibana:
 	@echo "Forwarding Kibana port 5601..."
-	kubectl port-forward -n elk svc/kibana 5601:5601
+	kubectl port-forward --address 0.0.0.0 -n elk svc/kibana 5601:5601
 
 # Clean up resources
 clean:
