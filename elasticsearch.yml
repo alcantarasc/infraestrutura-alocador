@@ -16,14 +16,14 @@ spec:
     spec:
       containers:
       - name: elasticsearch
-        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
         env:
         - name: discovery.type
           value: single-node
-        - name: ES_JAVA_OPTS
-          value: "-Xms1g -Xmx1g"
         - name: ELASTIC_PASSWORD
-          value: "senhaelastic" # Altere para uma senha segura
+          value: mereHISTE
+        - name: xpack.security.enabled
+          value: "true"
         ports:
         - containerPort: 9200
           name: http
@@ -35,7 +35,6 @@ spec:
       volumes:
       - name: data
         emptyDir: {}
-
 ---
 apiVersion: v1
 kind: Service
@@ -47,6 +46,5 @@ spec:
     app: elasticsearch
   ports:
   - port: 9200
-    name: http
-  - port: 9300
-    name: transport
+    targetPort: 9200
+  type: LoadBalancer

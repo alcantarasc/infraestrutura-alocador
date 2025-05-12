@@ -15,25 +15,42 @@ spec:
     spec:
       containers:
       - name: logstash
-        image: docker.elastic.co/logstash/logstash:7.17.0
-        command: ["logstash", "-e", "input { file { path => '/var/log/nginx/access.log' } } output { elasticsearch { hosts => ['elasticsearch:9200'] user => 'elastic' password => 'senhaelastic' } }"]
+        image: docker.elastic.co/logstash/logstash:8.12.0
         volumeMounts:
-        - name: nginx-logs
-          mountPath: /var/log/nginx
+        - name: host-logs
+          mountPath: /host/var/log
+        - name: config
+          mountPath: /usr/share/logstash/pipeline/
       volumes:
-      - name: nginx-logs
+      - name: host-logs
         hostPath:
-          path: /var/log/nginx
-          type: Directory
-
+          path: /var/log
+      - name: config
+        configMap:
+          name: logstash-config
 ---
 apiVersion: v1
-kind: Service
+kind: ConfigMap
 metadata:
-  name: logstash
+  name: logstash-config
   namespace: elk
-spec:
-  selector:
-    app: logstash
-  ports:
-  - port: 9600
+data:
+  logstash.conf: |
+    input {
+      file {
+        path => "/host/var/log/**/*.log"
+        start_position => "beginning"
+        sincedb_path => "/dev/null"
+      }
+    }
+    filter {
+      # Filtros podem ser adicionados aqui conforme necessário
+    }
+    output {
+      elasticsearch {
+        hosts => ["http://elasticsearch.elk.svc.cluster.local:9200"]
+        user => "elastic"
+        password => "mereHISTE"
+        index => "logs-%{+YYYY.MM.dd}"
+      }
+    }

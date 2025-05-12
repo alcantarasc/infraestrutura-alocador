@@ -5,23 +5,25 @@ metadata:
   namespace: elk
   annotations:
     nginx.ingress.kubernetes.io/auth-type: basic
-    nginx.ingress.kubernetes.io/auth-secret: basic-auth
+    nginx.ingress.kubernetes.io/auth-secret: kibana-auth
     nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"
 spec:
   rules:
   - http:
       paths:
-      - path: /kibana
+      - path: /
         pathType: Prefix
         backend:
           service:
             name: kibana
             port:
               number: 5601
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: nginx
-            port:
-              number: 80
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kibana-auth
+  namespace: elk
+type: Opaque
+data:
+  auth: $(echo -n 'kibana:quibeCRU' | base64)
