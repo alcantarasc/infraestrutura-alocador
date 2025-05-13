@@ -15,6 +15,5 @@ data:
     bootstrap.memory_lock: true
     network.host: 0.0.0.0
     discovery.type: single-node
-    xpack.license.self_generated.type: basic
-    # Enable xpack.security which is provided in basic subscription
-    xpack.security.enabled: true
+  
+  
