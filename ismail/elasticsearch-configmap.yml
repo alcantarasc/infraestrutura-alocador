@@ -18,10 +18,3 @@ data:
     xpack.license.self_generated.type: basic
     # Enable xpack.security which is provided in basic subscription
     xpack.security.enabled: true
-    xpack.security.transport.ssl.enabled: false
-    xpack.security.http.ssl.enabled: false
-    # Disable unused xpack features 
-    xpack.monitoring.templates.enabled: false
-    xpack.profiling.enabled: false
-    xpack.watcher.enabled: false
-    xpack.ml.enabled: false
