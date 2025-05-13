@@ -9,7 +9,9 @@ deploy-elk:
 	kubectl apply -f elk-namespace.yml
 	kubectl apply -f elasticsearch.yml
 	kubectl apply -f kibana-service-account.yml
-	kubectl create serviceaccount token kibana-service-account-token --serviceaccount=kibana -n elk
+	kubectl create token kibana -n elk > kibana-token
+	kubectl create secret generic kibana-service-account-token --from-literal=token=$$(cat kibana-token) -n elk
+	rm kibana-token.txt
 	kubectl apply -f kibana.yml
 	kubectl apply -f logstash.yml
 	@echo "Waiting for Elasticsearch to be ready..."
