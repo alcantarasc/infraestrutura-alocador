@@ -8,7 +8,6 @@ start-minikube:
 deploy-elk:
 	kubectl apply -f elk-namespace.yml
 	kubectl apply -f elasticsearch.yml
-	kubectl apply -f kibana-service-account.yml
 	kubectl apply -f kibana.yml
 	kubectl apply -f logstash.yml
 	@echo "Waiting for Elasticsearch to be ready..."

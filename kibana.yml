@@ -26,11 +26,6 @@ spec:
         env:
         - name: ELASTICSEARCH_HOSTS
           value: "http://elasticsearch.elk.svc.cluster.local:9200"
-        - name: ELASTICSEARCH_SERVICEACCOUNTTOKEN
-          valueFrom:
-            secretKeyRef:
-              name: kibana-service-account-token
-              key: token
         - name: KIBANA_SERVER_PUBLICBASEURL
           value: "http://167.88.33.95:5601"
         ports:
