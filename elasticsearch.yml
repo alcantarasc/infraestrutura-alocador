@@ -31,6 +31,8 @@ spec:
           value: mereHISTE
         - name: xpack.security.enabled
           value: "true"
+        - name: ELASTIC_USERNAME
+          value: "elastic"
         ports:
         - containerPort: 9200
           name: http
