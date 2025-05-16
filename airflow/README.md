@@ -10,4 +10,4 @@ docker compose up airflow-init
 
 docker compose up
 
-ocker compose down --volumes --remove-orphans
+docker compose down --volumes --remove-orphans

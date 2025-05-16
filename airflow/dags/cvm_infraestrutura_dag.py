@@ -1,0 +1,435 @@
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+from sqlalchemy import create_engine
+from airflow.models import Variable
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+DATABASE_USERNAME = Variable.get("DATABASE_USERNAME")
+DATABASE_PASSWORD = Variable.get("DATABASE_PASSWORD")
+DATABASE_IP = Variable.get("DATABASE_IP")
+DATABASE_PORT = Variable.get("DATABASE_PORT")
+
+dag = DAG(
+    dag_id='cria_tabelas_cvm',
+    description='DAG to create database tables with relationships in the screening_cvm database',
+    schedule_interval=None,
+)
+
+def create_tables():
+    engine = create_engine(f'mysql+pymysql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
+    
+    # ARQUIVO VELHO
+    create_informacao_cadastral_sql = """
+    CREATE TABLE IF NOT EXISTS INFORMACAO_CADASTRAL (
+        ADMIN VARCHAR(100),
+        AUDITOR VARCHAR(100),
+        CD_CVM NUMERIC(7, 0),
+        CLASSE VARCHAR(100),
+        CLASSE_ANBIMA VARCHAR(100),
+        CNPJ_ADMIN VARCHAR(20),
+        CNPJ_AUDITOR VARCHAR(20),
+        CNPJ_CONTROLADOR VARCHAR(20),
+        CNPJ_CUSTODIANTE VARCHAR(20),
+        CNPJ_FUNDO VARCHAR(20),
+        CONDOM VARCHAR(100),
+        CONTROLADOR VARCHAR(100),
+        CPF_CNPJ_GESTOR VARCHAR(20),
+        CUSTODIANTE VARCHAR(100),
+        DENOM_SOCIAL VARCHAR(100),
+        DIRETOR VARCHAR(100),
+        DT_CANCEL DATE,
+        DT_CONST DATE,
+        DT_FIM_EXERC DATE,
+        DT_INI_ATIV DATE,
+        DT_INI_CLASSE DATE,
+        DT_INI_EXERC DATE,
+        DT_INI_SIT DATE,
+        DT_PATRIM_LIQ DATE,
+        DT_REG DATE,
+        ENTID_INVEST CHAR(1),
+        FUNDO_COTAS VARCHAR(1),
+        FUNDO_EXCLUSIVO VARCHAR(1),
+        GESTOR VARCHAR(100),
+        INF_TAXA_ADM VARCHAR(400),
+        INF_TAXA_PERFM VARCHAR(400),
+        INVEST_CEMPR_EXTER VARCHAR(1),
+        PF_PJ_GESTOR CHAR(2),
+        PUBLICO_ALVO VARCHAR(15),
+        RENTAB_FUNDO VARCHAR(100),
+        SIT VARCHAR(100),
+        TAXA_ADM REAL,
+        TAXA_PERFM REAL,
+        TP_FUNDO VARCHAR(20),
+        TRIB_LPRAZO VARCHAR(3),
+        VL_PATRIM_LIQ NUMERIC(24, 2),
+        PRIMARY KEY pk_cnpj (CNPJ_FUNDO)
+    );
+    """
+    create_informacao_diaria_sql = """
+    CREATE TABLE IF NOT EXISTS INFORMACAO_DIARIA (
+        CNPJ_FUNDO_CLASSE VARCHAR(20) NOT NULL,
+        DT_COMPTC DATE NOT NULL,
+        ID_SUBCLASSE VARCHAR(15) NOT NULL DEFAULT 'NA',
+        TP_FUNDO_CLASSE VARCHAR(15) NOT NULL DEFAULT 'NA',
+        CAPTC_DIA NUMERIC(17, 2),
+        NR_COTST INT,
+        RESG_DIA NUMERIC(17, 2),
+        VL_PATRIM_LIQ NUMERIC(17, 2),
+        VL_QUOTA NUMERIC(27, 12),
+        VL_TOTAL NUMERIC(17, 2),
+        PRIMARY KEY (CNPJ_FUNDO_CLASSE, DT_COMPTC, ID_SUBCLASSE, TP_FUNDO_CLASSE)
+    );
+    """
+    
+    create_composicao_carteira_titulo_publico_selic_sql = """
+    CREATE TABLE IF NOT EXISTS COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC (
+        CNPJ_FUNDO_CLASSE VARCHAR(20),
+        DT_COMPTC DATE,
+        CD_ISIN VARCHAR(12),
+        CD_SELIC VARCHAR(6),
+        DENOM_SOCIAL VARCHAR(100),
+        DT_CONFID_APLIC DATE,
+        DT_EMISSAO DATE,
+        DT_VENC DATE,
+        EMISSOR_LIGADO VARCHAR(1),
+        QT_AQUIS_NEGOC NUMERIC(21, 6),
+        QT_POS_FINAL NUMERIC(21, 6),
+        QT_VENDA_NEGOC NUMERIC(21, 6),
+        TP_APLIC VARCHAR(150),
+        TP_ATIVO VARCHAR(150),
+        TP_FUNDO_CLASSE VARCHAR(20),
+        TP_FUNDO VARCHAR(15),
+        TP_NEGOC VARCHAR(24),
+        TP_TITPUB VARCHAR(50),
+        VL_AQUIS_NEGOC NUMERIC(19, 2),
+        VL_CUSTO_POS_FINAL NUMERIC(19, 2),
+        VL_MERC_POS_FINAL NUMERIC(19, 2),
+        VL_VENDA_NEGOC NUMERIC(19, 2),
+        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+    );
+    """
+    create_composicao_carteira_fundos_sql = """
+    CREATE TABLE IF NOT EXISTS COMPOSICAO_CARTEIRA_FUNDOS (
+        CNPJ_FUNDO_CLASSE VARCHAR(20),
+        DT_COMPTC DATE,
+        DENOM_SOCIAL VARCHAR(100),
+        DT_CONFID_APLIC DATE,
+        EMISSOR_LIGADO VARCHAR(1),
+        ID_SUBCLASSE VARCHAR(15),
+        NM_FUNDO_COTA VARCHAR(100),
+        QT_AQUIS_NEGOC NUMERIC(21, 6),
+        QT_POS_FINAL NUMERIC(21, 6),
+        QT_VENDA_NEGOC NUMERIC(21, 6),
+        TP_APLIC VARCHAR(150),
+        TP_ATIVO VARCHAR(150),
+        TP_FUNDO_CLASSE VARCHAR(20),
+        TP_NEGOC VARCHAR(24),
+        VL_AQUIS_NEGOC NUMERIC(19, 2),
+        VL_CUSTO_POS_FINAL NUMERIC(19, 2),
+        VL_MERC_POS_FINAL NUMERIC(19, 2),
+        VL_VENDA_NEGOC NUMERIC(19, 2),
+        CNPJ_FUNDO_CLASSE_COTA VARCHAR(20),
+        NM_FUNDO_CLASSE_SUBCLASSE_COTA VARCHAR(100),
+        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+    );
+    """
+
+    create_composicao_carteira_swaps_sql = """
+    CREATE TABLE IF NOT EXISTS COMPOSICAO_CARTEIRA_SWAPS (
+        CNPJ_FUNDO_CLASSE VARCHAR(20),
+        DT_COMPTC DATE,
+        CD_SWAP VARCHAR(50),
+        DENOM_SOCIAL VARCHAR(100),
+        DS_SWAP VARCHAR(100),
+        DT_CONFID_APLIC DATE,
+        EMISSOR_LIGADO VARCHAR(1),
+        QT_AQUIS_NEGOC NUMERIC(21, 6),
+        QT_POS_FINAL NUMERIC(21, 6),
+        QT_VENDA_NEGOC NUMERIC(21, 6),
+        TP_APLIC VARCHAR(150),
+        TP_ATIVO VARCHAR(150),
+        TP_FUNDO_CLASSE VARCHAR(20),
+        TP_NEGOC VARCHAR(24),
+        VL_AQUIS_NEGOC NUMERIC(19, 2),
+        VL_CUSTO_POS_FINAL NUMERIC(19, 2),
+        VL_MERC_POS_FINAL NUMERIC(19, 2),
+        VL_VENDA_NEGOC NUMERIC(19, 2),
+        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+    );
+    """
+
+    create_composicao_carteira_demais_codificados_sql = """
+    CREATE TABLE IF NOT EXISTS COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS (
+        CNPJ_FUNDO_CLASSE VARCHAR(20),
+        DT_COMPTC DATE,
+        CD_ATIVO VARCHAR(100),
+        CD_ISIN VARCHAR(12),
+        DENOM_SOCIAL VARCHAR(100),
+        DS_ATIVO VARCHAR(100),
+        DT_CONFID_APLIC DATE,
+        DT_FIM_VIGENCIA DATE,
+        DT_INI_VIGENCIA DATE,
+        EMISSOR_LIGADO VARCHAR(1),
+        QT_AQUIS_NEGOC NUMERIC(21, 6),
+        QT_POS_FINAL NUMERIC(21, 6),
+        QT_VENDA_NEGOC NUMERIC(21, 6),
+        TP_APLIC VARCHAR(150),
+        TP_ATIVO VARCHAR(150),
+        TP_FUNDO_CLASSE VARCHAR(20),
+        TP_NEGOC VARCHAR(24),
+        VL_AQUIS_NEGOC NUMERIC(19, 2),
+        VL_CUSTO_POS_FINAL NUMERIC(19, 2),
+        VL_MERC_POS_FINAL NUMERIC(19, 2),
+        VL_VENDA_NEGOC NUMERIC(19, 2),
+        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+    );
+    """
+
+    create_composicao_carteira_deposito_prazo_if_sql = """
+    CREATE TABLE IF NOT EXISTS COMPOSICAO_CARTEIRA_DEPOSITO_PRAZO_IF (
+        CNPJ_FUNDO_CLASSE VARCHAR(20),
+        DT_COMPTC DATE,
+        AG_RISCO VARCHAR(200),
+        CD_INDEXADOR_POSFX VARCHAR(50),
+        CNPJ_EMISSOR VARCHAR(20),
+        DENOM_SOCIAL VARCHAR(100),
+        DS_INDEXADOR_POSFX VARCHAR(100),
+        DT_CONFID_APLIC DATE,
+        DT_RISCO DATE,
+        DT_VENC DATE,
+        EMISSOR VARCHAR(200),
+        EMISSOR_LIGADO VARCHAR(1),
+        GRAU_RISCO VARCHAR(6),
+        PR_CUPOM_POSFX NUMERIC(9, 6),
+        PR_INDEXADOR_POSFX NUMERIC(9, 6),
+        PR_TAXA_PREFX NUMERIC(9, 6),
+        QT_AQUIS_NEGOC NUMERIC(21, 6),
+        QT_POS_FINAL NUMERIC(21, 6),
+        QT_VENDA_NEGOC NUMERIC(21, 6),
+        RISCO_EMISSOR VARCHAR(1),
+        TITULO_POSFX VARCHAR(1),
+        TP_APLIC VARCHAR(150),
+        TP_ATIVO VARCHAR(150),
+        TP_FUNDO_CLASSE VARCHAR(20),
+        TP_NEGOC VARCHAR(24),
+        VL_AQUIS_NEGOC NUMERIC(19, 2),
+        VL_CUSTO_POS_FINAL NUMERIC(19, 2),
+        VL_MERC_POS_FINAL NUMERIC(19, 2),
+        VL_VENDA_NEGOC NUMERIC(19, 2),
+        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+    );
+    """
+
+    create_composicao_carteira_titulo_privado = """
+    CREATE TABLE IF NOT EXISTS COMPOSICAO_CARTEIRA_TITULO_PRIVADO (
+        CNPJ_FUNDO_CLASSE VARCHAR(20),
+        DT_COMPTC DATE,
+        CD_INDEXADOR_POSFX VARCHAR(50),
+        CNPJ_INSTITUICAO_FINANC_COOBR VARCHAR(20),
+        CPF_CNPJ_EMISSOR VARCHAR(20),
+        DENOM_SOCIAL VARCHAR(100),
+        DS_INDEXADOR_POSFX VARCHAR(100),
+        DT_CONFID_APLIC DATE,
+        DT_VENC DATE,
+        EMISSOR VARCHAR(200),
+        EMISSOR_LIGADO VARCHAR(1),
+        PF_PJ_EMISSOR CHAR(2),
+        PR_CUPOM_POSFX NUMERIC(9, 6),
+        PR_INDEXADOR_POSFX NUMERIC(9, 6),
+        PR_TAXA_PREFX NUMERIC(9, 6),
+        QT_AQUIS_NEGOC NUMERIC(21, 6),
+        QT_POS_FINAL NUMERIC(21, 6),
+        QT_VENDA_NEGOC NUMERIC(21, 6),
+        TITULO_CETIP VARCHAR(1),
+        TITULO_GARANTIA VARCHAR(1),
+        TITULO_POSFX VARCHAR(1),
+        TP_APLIC VARCHAR(150),
+        TP_ATIVO VARCHAR(150),
+        TP_FUNDO_CLASSE VARCHAR(20),
+        TP_NEGOC VARCHAR(24),
+        VL_AQUIS_NEGOC NUMERIC(19, 2),
+        VL_CUSTO_POS_FINAL NUMERIC(19, 2),
+        VL_MERC_POS_FINAL NUMERIC(19, 2),
+        VL_VENDA_NEGOC NUMERIC(19, 2),
+        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+    );
+    """
+
+    create_composicao_carteira_investimento_exterior = """
+    CREATE TABLE IF NOT EXISTS COMPOSICAO_CARTEIRA_INVESTIMENTO_EXTERIOR (
+        CNPJ_FUNDO_CLASSE VARCHAR(20),
+        DT_COMPTC DATE,
+        AG_RISCO VARCHAR(200),
+        BV_MERC VARCHAR(100),
+        CD_ATIVO_BV_MERC VARCHAR(12),
+        CD_BV_MERC VARCHAR(6),
+        CD_PAIS VARCHAR(3),
+        DENOM_SOCIAL VARCHAR(100),
+        DS_ATIVO_EXTERIOR VARCHAR(50),
+        DT_CONFID_APLIC DATE,
+        DT_RISCO DATE,
+        DT_VENC DATE,
+        EMISSOR VARCHAR(200),
+        EMISSOR_LIGADO VARCHAR(1),
+        GRAU_RISCO VARCHAR(6),
+        INVEST_COLETIVO VARCHAR(1),
+        INVEST_COLETIVO_GESTOR VARCHAR(1),
+        PAIS VARCHAR(100),
+        QT_AQUIS_NEGOC NUMERIC(21, 6),
+        QT_ATIVO_EXTERIOR NUMERIC(18, 0),
+        QT_POS_FINAL NUMERIC(21, 6),
+        QT_VENDA_NEGOC NUMERIC(21, 6),
+        RISCO_EMISSOR VARCHAR(1),
+        TP_APLIC VARCHAR(150),
+        TP_ATIVO VARCHAR(150),
+        TP_FUNDO_CLASSE VARCHAR(20),
+        TP_NEGOC VARCHAR(24),
+        VL_AQUIS_NEGOC NUMERIC(19, 2),
+        VL_ATIVO_EXTERIOR NUMERIC(53, 0),
+        VL_CUSTO_POS_FINAL NUMERIC(19, 2),
+        VL_MERC_POS_FINAL NUMERIC(19, 2),
+        VL_VENDA_NEGOC NUMERIC(19, 2),
+        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+    );
+    """
+
+    create_composicao_carteira_nao_codificados = """
+    CREATE TABLE IF NOT EXISTS COMPOSICAO_CARTEIRA_NAO_CODIFICADOS (
+        CNPJ_FUNDO_CLASSE VARCHAR(20),
+        DT_COMPTC DATE,
+        CPF_CNPJ_EMISSOR VARCHAR(20),
+        DENOM_SOCIAL VARCHAR(100),
+        DS_ATIVO VARCHAR(1000),
+        DT_CONFID_APLIC DATE,
+        EMISSOR VARCHAR(150),
+        EMISSOR_LIGADO VARCHAR(1),
+        PF_PJ_EMISSOR CHAR(2),
+        QT_AQUIS_NEGOC NUMERIC(21, 6),
+        QT_POS_FINAL NUMERIC(21, 6),
+        QT_VENDA_NEGOC NUMERIC(21, 6),
+        TP_APLIC VARCHAR(150),
+        TP_ATIVO VARCHAR(150),
+        TP_FUNDO_CLASSE VARCHAR(20),
+        TP_NEGOC VARCHAR(24),
+        VL_AQUIS_NEGOC NUMERIC(19, 2),
+        VL_CUSTO_POS_FINAL NUMERIC(19, 2),
+        VL_MERC_POS_FINAL NUMERIC(19, 2),
+        VL_VENDA_NEGOC NUMERIC(19, 2),
+        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+    );
+    """
+    
+    create_registro_fundo_sql = """
+    CREATE TABLE IF NOT EXISTS REGISTRO_FUNDO (
+        ID_REGISTRO_FUNDO BIGINT PRIMARY KEY,
+        CNPJ_FUNDO VARCHAR(20),
+        CODIGO_CVM NUMERIC(7, 0),
+        DATA_REGISTRO DATE,
+        DATA_CONSTITUICAO DATE,
+        TIPO_FUNDO VARCHAR(20),
+        DENOMINACAO_SOCIAL VARCHAR(100),
+        DATA_CANCELAMENTO DATE,
+        SITUACAO VARCHAR(100),
+        DATA_INICIO_SITUACAO DATE,
+        DATA_ADAPTACAO_RCVM175 DATE,
+        DATA_INICIO_EXERCICIO_SOCIAL DATE,
+        DATA_FIM_EXERCICIO_SOCIAL DATE,
+        PATRIMONIO_LIQUIDO NUMERIC(24, 2),
+        DATA_PATRIMONIO_LIQUIDO DATE,
+        DIRETOR VARCHAR(100),
+        CNPJ_ADMINISTRADOR VARCHAR(20),
+        ADMINISTRADOR VARCHAR(100),
+        TIPO_PESSOA_GESTOR CHAR(2),
+        CPF_CNPJ_GESTOR VARCHAR(20),
+        GESTOR VARCHAR(100),
+        INDEX idx_cnpj_fundo (CNPJ_FUNDO),
+        INDEX idx_codigo_cvm (CODIGO_CVM),
+        INDEX idx_data_registro (DATA_REGISTRO)
+    );
+    """
+
+    registro_classe_sql = """
+    CREATE TABLE IF NOT EXISTS REGISTRO_CLASSE (
+        ID_REGISTRO_CLASSE BIGINT PRIMARY KEY,
+        ID_REGISTRO_FUNDO BIGINT NOT NULL,
+        CNPJ_CLASSE VARCHAR(20),
+        CODIGO_CVM NUMERIC(7, 0),
+        DATA_REGISTRO DATE,
+        DATA_CONSTITUICAO DATE,
+        DATA_INICIO DATE,
+        TIPO_CLASSE VARCHAR(100),
+        DENOMINACAO_SOCIAL VARCHAR(100),
+        SITUACAO VARCHAR(100),
+        CLASSIFICACAO VARCHAR(100),
+        IDENTIFICADOR_DESEMPENHO VARCHAR(100),
+        CLASSE_COTAS VARCHAR(1),
+        CLASSIFICACAO_ANBIMA VARCHAR(100),
+        TRIBUTACAO_LONGO_PRAZO VARCHAR(3),
+        ENTIDADE_INVESTIMENTO VARCHAR(1),
+        PERMITIDO_APLICACAO_CEM_POR_CENTO_EXTERIOR VARCHAR(1),
+        CLASSE_ESG VARCHAR(1),
+        FORMA_CONDOMINIO VARCHAR(100),
+        EXCLUSIVO VARCHAR(1),
+        PUBLICO_ALVO VARCHAR(15),
+        CNPJ_AUDITOR VARCHAR(20),
+        AUDITOR VARCHAR(100),
+        CNPJ_CUSTODIANTE VARCHAR(20),
+        CUSTODIANTE VARCHAR(100),
+        CNPJ_CONTROLADOR VARCHAR(20),
+        CONTROLADOR VARCHAR(100),
+        INDEX idx_cnpj_classe (CNPJ_CLASSE),
+        INDEX idx_codigo_cvm (CODIGO_CVM),
+        FOREIGN KEY (ID_REGISTRO_FUNDO) 
+            REFERENCES REGISTRO_FUNDO(ID_REGISTRO_FUNDO)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE
+    );
+    """
+
+    registro_subclasse_sql = """
+    CREATE TABLE IF NOT EXISTS REGISTRO_SUBCLASSE (
+        ID_SUBCLASSE VARCHAR(15) PRIMARY KEY,
+        ID_REGISTRO_CLASSE BIGINT NOT NULL,
+        CODIGO_CVM NUMERIC(7, 0),
+        DATA_CONSTITUICAO DATE,
+        DATA_INICIO DATE,
+        DENOMINACAO_SOCIAL VARCHAR(100),
+        SITUACAO VARCHAR(100),
+        FORMA_CONDOMINIO VARCHAR(100),
+        EXCLUSIVO VARCHAR(1),
+        PUBLICO_ALVO VARCHAR(15),
+        INDEX idx_codigo_cvm (CODIGO_CVM),
+        FOREIGN KEY (ID_REGISTRO_CLASSE) 
+            REFERENCES REGISTRO_CLASSE(ID_REGISTRO_CLASSE)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE
+    );
+    """
+    
+
+    with engine.connect() as connection:
+        connection.execute(create_informacao_cadastral_sql)
+        connection.execute(create_informacao_diaria_sql)
+        connection.execute(create_composicao_carteira_titulo_publico_selic_sql)
+        connection.execute(create_composicao_carteira_fundos_sql)
+        connection.execute(create_composicao_carteira_swaps_sql)
+        connection.execute(create_composicao_carteira_demais_codificados_sql)
+        connection.execute(create_composicao_carteira_deposito_prazo_if_sql)
+        connection.execute(create_composicao_carteira_titulo_privado)
+        connection.execute(create_composicao_carteira_investimento_exterior)
+        connection.execute(create_composicao_carteira_nao_codificados)
+        connection.execute(create_registro_fundo_sql)
+        connection.execute(registro_classe_sql)
+        connection.execute(registro_subclasse_sql)
+
+create_tables_task = PythonOperator(
+    task_id='cria_tabelas_cvm',
+    python_callable=create_tables,
+    dag=dag,
+)
+
+create_tables_task
