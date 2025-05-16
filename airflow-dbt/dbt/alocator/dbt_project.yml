@@ -1,0 +1,9 @@
+name: 'alocator'
+version: '1.0'
+profile: 'alocator'
+
+model-paths: ["models"]
+
+models:
+  alocator:
+    materialized: view
