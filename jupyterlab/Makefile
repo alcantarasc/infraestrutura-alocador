@@ -1,13 +1,14 @@
-.PHONY: build run setup-users
+.PHONY: build run setup-users stop clean setup-user build-and-run
 
 # Variables
-CONTAINER_NAME := jupyter-lab
+IMAGE_NAME = jupyterlab
+CONTAINER_NAME = jupyterlab-container
+PORT = 8888
 USERS := lucas martim
-PORT := 8888
 
 build:
 	@echo "Building Docker image..."
-	docker build -t $(CONTAINER_NAME) .
+	docker build -t $(IMAGE_NAME) .
 
 run:
 	@echo "Starting JupyterLab container..."
@@ -15,7 +16,7 @@ run:
 		--name $(CONTAINER_NAME) \
 		-p $(PORT):8888 \
 		-v $(PWD)/notebooks:/home/jovyan/work \
-		$(CONTAINER_NAME)
+		$(IMAGE_NAME)
 	@echo "Waiting for container to be ready..."
 	@sleep 5
 
@@ -29,7 +30,21 @@ setup-users:
 
 stop:
 	@echo "Stopping container..."
-	docker stop $(CONTAINER_NAME)
-	docker rm $(CONTAINER_NAME)
+	docker stop $(CONTAINER_NAME) || true
+	docker rm $(CONTAINER_NAME) || true
+
+clean: stop
+	docker rmi $(IMAGE_NAME) || true
+
+setup-user:
+	@if [ -z "$(CONTAINER_NAME)" ]; then \
+		echo "Error: CONTAINER_NAME is required"; \
+		exit 1; \
+	fi
+	./setup-user.sh $(CONTAINER_NAME)
+
+build-and-run: build
+	docker run --name $(CONTAINER_NAME) -p $(PORT):8888 $(IMAGE_NAME)
+	@echo "Container stopped. You can remove it with 'make stop'"
 
 all: build run setup-users 
