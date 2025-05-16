@@ -18,11 +18,11 @@ run:
 		$(CONTAINER_NAME)
 
 setup-users:
-	@echo "Setting up users..."
+	@echo "Setting up JupyterLab users..."
 	@for user in $(USERS); do \
 		PASSWORD=$$(openssl rand -base64 12); \
-		echo "Creating user: $$user with password: $$PASSWORD"; \
-		docker exec $(CONTAINER_NAME) bash -c "useradd -m $$user && echo $$user:$$PASSWORD | chpasswd"; \
+		echo "Creating JupyterLab user: $$user with password: $$PASSWORD"; \
+		docker exec $(CONTAINER_NAME) jupyter server auth add $$user $$PASSWORD; \
 	done
 
 stop:
