@@ -16,6 +16,8 @@ run:
 		-p $(PORT):8888 \
 		-v $(PWD)/notebooks:/home/jovyan/work \
 		$(CONTAINER_NAME)
+	@echo "Waiting for container to be ready..."
+	@sleep 5
 
 setup-users:
 	@echo "Setting up JupyterLab users..."

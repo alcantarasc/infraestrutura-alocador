@@ -16,8 +16,9 @@ RUN mkdir -p /home/jovyan/auth && \
 
 # Configure JupyterLab to use password authentication
 RUN mkdir -p /home/jovyan/.jupyter && \
-    echo "c.ServerApp.token = ''" >> /home/jovyan/.jupyter/jupyter_server_config.py && \
-    echo "c.ServerApp.password_required = True" >> /home/jovyan/.jupyter/jupyter_server_config.py && \
+    echo "c.IdentityProvider.token = ''" >> /home/jovyan/.jupyter/jupyter_server_config.py && \
+    echo "c.PasswordIdentityProvider.password_required = True" >> /home/jovyan/.jupyter/jupyter_server_config.py && \
+    echo "c.PasswordIdentityProvider.password = 'jupyter'" >> /home/jovyan/.jupyter/jupyter_server_config.py && \
     chown -R ${NB_UID}:${NB_GID} /home/jovyan/.jupyter
 
 # Switch back to jovyan user
