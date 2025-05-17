@@ -18,7 +18,7 @@ RUN useradd -m -s /bin/bash -N -u $NB_UID $NB_USER
 RUN pip install --no-cache-dir jupyterlab
 
 # Define a senha do Jupyter (ex: "senha123")
-RUN python3 -c "from notebook.auth import passwd; print(passwd('senha123'))" > /tmp/jupyter_passwd
+RUN python3 -c "from notebook.auth import passwd; print(passwd('boradeDINHEIRO$'))" > /tmp/jupyter_passwd
 
 # Cria diretório de configuração e define configurações
 RUN mkdir -p /home/$NB_USER/.jupyter && \
