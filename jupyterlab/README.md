@@ -1,4 +1,1 @@
-# instala jupyter com senha e password.
- 
-## usuarios:
-## martim, lucas.
+docker run -p 8888:8888 jupyter-com-senha
