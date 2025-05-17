@@ -1,34 +1,16 @@
-FROM python:3.11-slim
+FROM jupyter/base-notebook:lab-4.1.8
 
-# Instala dependências essenciais
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Define a senha Jupyter (senha: senha123)
+RUN python3 -c "from notebook.auth import passwd; print(passwd('senha123'))" > /tmp/jupyter_passwd
 
-# Cria um usuário padrão
-ENV NB_USER=jupyter
-ENV NB_UID=1000
-ENV NB_GID=100
+# Desativa token e configura acesso por senha
+RUN echo "c.NotebookApp.password = open('/tmp/jupyter_passwd').read().strip()" >> /home/jovyan/.jupyter/jupyter_lab_config.py && \
+    echo "c.NotebookApp.token = ''" >> /home/jovyan/.jupyter/jupyter_lab_config.py && \
+    echo "c.NotebookApp.open_browser = False" >> /home/jovyan/.jupyter/jupyter_lab_config.py && \
+    echo "c.NotebookApp.ip = '0.0.0.0'" >> /home/jovyan/.jupyter/jupyter_lab_config.py && \
+    echo "c.NotebookApp.allow_origin = '*'" >> /home/jovyan/.jupyter/jupyter_lab_config.py
 
-RUN useradd -m -s /bin/bash -N -u $NB_UID $NB_USER
+# Define o diretório de trabalho padrão
+WORKDIR /home/jovyan
 
-# Instala JupyterLab
-RUN pip install --no-cache-dir jupyterlab
-
-# Define a senha do Jupyter (ex: "senha123")
-RUN python3 -c "from notebook.auth import passwd; print(passwd('boradeDINHEIRO$'))" > /tmp/jupyter_passwd
-
-# Cria diretório de configuração e define configurações
-RUN mkdir -p /home/$NB_USER/.jupyter && \
-    echo \"c.NotebookApp.password = open('/tmp/jupyter_passwd').read().strip()\" >> /home/$NB_USER/.jupyter/jupyter_lab_config.py && \
-    echo \"c.NotebookApp.token = ''\" >> /home/$NB_USER/.jupyter/jupyter_lab_config.py && \
-    echo \"c.NotebookApp.ip = '0.0.0.0'\" >> /home/$NB_USER/.jupyter/jupyter_lab_config.py && \
-    echo \"c.NotebookApp.open_browser = False\" >> /home/$NB_USER/.jupyter/jupyter_lab_config.py && \
-    chown -R $NB_USER:$NB_GID /home/$NB_USER/.jupyter
-
-USER $NB_USER
-WORKDIR /home/$NB_USER
-
-CMD ["jupyter", "lab", "--no-browser", "--NotebookApp.allow_origin='*'", "--NotebookApp.disable_check_xsrf=True"]
+CMD ["start-notebook.sh", "--NotebookApp.token=''", "--NotebookApp.disable_check_xsrf=True"]
