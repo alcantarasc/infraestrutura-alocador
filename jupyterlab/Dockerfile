@@ -1,20 +1,34 @@
-FROM jupyter/base-notebook:latest
+FROM python:3.11-slim
 
-USER root
+# Instala dependências essenciais
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install any additional system packages if needed
-RUN apt-get update && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Cria um usuário padrão
+ENV NB_USER=jupyter
+ENV NB_UID=1000
+ENV NB_GID=100
 
-# Install jupyter-server-proxy for user management
-RUN pip install jupyter-server-proxy
+RUN useradd -m -s /bin/bash -N -u $NB_UID $NB_USER
 
-# Create auth directory and set permissions
-RUN mkdir -p /home/jovyan/auth && \
-    chown -R ${NB_UID}:${NB_GID} /home/jovyan/auth
+# Instala JupyterLab
+RUN pip install --no-cache-dir jupyterlab
 
-# Switch back to jovyan user
-USER ${NB_UID}
+# Define a senha do Jupyter (ex: "senha123")
+RUN python3 -c "from notebook.auth import passwd; print(passwd('senha123'))" > /tmp/jupyter_passwd
 
-# The base-notebook image already has the correct CMD to start JupyterLab 
+# Cria diretório de configuração e define configurações
+RUN mkdir -p /home/$NB_USER/.jupyter && \
+    echo \"c.NotebookApp.password = open('/tmp/jupyter_passwd').read().strip()\" >> /home/$NB_USER/.jupyter/jupyter_lab_config.py && \
+    echo \"c.NotebookApp.token = ''\" >> /home/$NB_USER/.jupyter/jupyter_lab_config.py && \
+    echo \"c.NotebookApp.ip = '0.0.0.0'\" >> /home/$NB_USER/.jupyter/jupyter_lab_config.py && \
+    echo \"c.NotebookApp.open_browser = False\" >> /home/$NB_USER/.jupyter/jupyter_lab_config.py && \
+    chown -R $NB_USER:$NB_GID /home/$NB_USER/.jupyter
+
+USER $NB_USER
+WORKDIR /home/$NB_USER
+
+CMD ["jupyter", "lab", "--no-browser", "--NotebookApp.allow_origin='*'", "--NotebookApp.disable_check_xsrf=True"]
