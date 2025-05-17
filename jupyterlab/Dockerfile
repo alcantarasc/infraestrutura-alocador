@@ -1,7 +1,7 @@
 FROM jupyter/minimal-notebook:latest
 
 # Define a senha desejada
-ARG JUPYTER_PASSWORD=senha123
+ARG JUPYTER_PASSWORD=dinheirimBORA
 
 USER root
 # Instala o pacote notebook (contém notebook.auth.passwd)
