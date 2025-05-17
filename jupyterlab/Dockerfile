@@ -1,16 +1,22 @@
-FROM jupyter/base-notebook:lab-4.1.8
+FROM jupyter/minimal-notebook:latest
 
-# Define a senha Jupyter (senha: senha123)
-RUN python3 -c "from notebook.auth import passwd; print(passwd('senha123'))" > /tmp/jupyter_passwd
+ARG JUPYTER_PASSWORD=dinheirimBORA
 
-# Desativa token e configura acesso por senha
-RUN echo "c.NotebookApp.password = open('/tmp/jupyter_passwd').read().strip()" >> /home/jovyan/.jupyter/jupyter_lab_config.py && \
-    echo "c.NotebookApp.token = ''" >> /home/jovyan/.jupyter/jupyter_lab_config.py && \
-    echo "c.NotebookApp.open_browser = False" >> /home/jovyan/.jupyter/jupyter_lab_config.py && \
-    echo "c.NotebookApp.ip = '0.0.0.0'" >> /home/jovyan/.jupyter/jupyter_lab_config.py && \
-    echo "c.NotebookApp.allow_origin = '*'" >> /home/jovyan/.jupyter/jupyter_lab_config.py
+USER root
+# Garante que o ipython esteja instalado para gerar o hash
+RUN pip install --no-cache-dir ipython
 
-# Define o diretório de trabalho padrão
-WORKDIR /home/jovyan
+# Volta para o usuário jovyan (o padrão do container)
+USER jovyan
 
-CMD ["start-notebook.sh", "--NotebookApp.token=''", "--NotebookApp.disable_check_xsrf=True"]
+# Gera o hash da senha e escreve o config do Jupyter
+RUN python3 -c "from notebook.auth import passwd; print(f\"c.NotebookApp.password = '{passwd('${JUPYTER_PASSWORD}', algorithm='sha1')}'\")" \
+    >> /home/jovyan/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.token = ''" >> /home/jovyan/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.ip = '0.0.0.0'" >> /home/jovyan/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.open_browser = False" >> /home/jovyan/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.port = 8888" >> /home/jovyan/.jupyter/jupyter_notebook_config.py
+
+EXPOSE 8888
+
+CMD ["start-notebook.sh"]
