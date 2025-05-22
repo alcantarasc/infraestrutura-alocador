@@ -16,8 +16,7 @@ DATABASE_PORT = Variable.get("DATABASE_PORT")
 
 dag = DAG(
     dag_id='cria_tabelas_cvm',
-    description='DAG to create database tables with relationships in the screening_cvm database',
-    schedule_interval=None,
+    description='DAG to create database tables with relationships in the screening_cvm database'
 )
 
 def create_tables():

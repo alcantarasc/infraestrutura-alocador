@@ -19,7 +19,6 @@ dag = DAG(
     'cvm_extract',
     default_args='',
     description='Pipeline para extracao de dados CVM',
-    schedule_interval=timedelta(days=1),
     catchup=False,
 )
 

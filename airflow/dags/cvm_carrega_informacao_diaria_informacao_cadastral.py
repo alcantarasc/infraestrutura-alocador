@@ -513,8 +513,6 @@ def load_data_to_db():
 dag = DAG(
     dag_id='load_data_to_db',
     description='DAG to load data from CSV files to database tables',
-    schedule_interval='@daily',
-    start_date=datetime(2023, 10, 1),
     catchup=False
 )
 

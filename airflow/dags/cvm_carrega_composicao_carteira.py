@@ -200,7 +200,6 @@ dag = DAG(
     dag_id='load_informacao_carteira',
     default_args={},
     description='Carrega informacao de composicao de carteira para o banco de dados',
-    schedule_interval=timedelta(days=1),
     catchup=False,
 )
 
