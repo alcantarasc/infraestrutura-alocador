@@ -1,1 +1,3 @@
-ROOT_DIR = '/opt/airflow/artefatos'
+from pathlib import Path
+
+ROOT_DIR = Path('/opt/airflow/artefatos')
