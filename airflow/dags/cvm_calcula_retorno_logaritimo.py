@@ -1,13 +1,13 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.models import Variable
-from datetime import datetime, timedelta
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import dask.dataframe as dd
 from sqlalchemy import create_engine, text
 from tqdm import tqdm
-
+import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

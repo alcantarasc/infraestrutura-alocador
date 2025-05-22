@@ -7,9 +7,7 @@ import numpy as np
 from sqlalchemy import create_engine
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.dates import days_ago
-
+from settings import ROOT_DIR
 import dask.dataframe as dd
 
 logging.basicConfig(level=logging.INFO)
@@ -199,7 +197,7 @@ def carrega_informacao_carteira():
 
 dag = DAG(
     dag_id='load_informacao_carteira',
-    default_args=DEFAULT_ARGS,
+    default_args={},
     description='Carrega informacao de composicao de carteira para o banco de dados',
     schedule_interval=timedelta(days=1),
     catchup=False,

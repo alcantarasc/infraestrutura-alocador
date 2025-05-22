@@ -1,13 +1,13 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine
-from sqlalchemy.exc import IntegrityError, DataError 
 import dask.dataframe as dd
 from airflow.models import Variable
 from pathlib import Path
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from settings import ROOT_DIR
 
 import logging
 

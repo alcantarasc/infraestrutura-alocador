@@ -13,6 +13,7 @@ DATABASE_PASSWORD = Variable.get("DATABASE_PASSWORD")
 DATABASE_IP = Variable.get("DATABASE_IP")
 DATABASE_PORT = Variable.get("DATABASE_PORT")
 
+
 dag = DAG(
     dag_id='cria_tabelas_cvm',
     description='DAG to create database tables with relationships in the screening_cvm database',

@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 import os
 import shutil
+from settings import ROOT_DIR
 
 
 
