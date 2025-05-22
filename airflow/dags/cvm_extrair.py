@@ -11,13 +11,8 @@ import os
 import shutil
 from settings import ROOT_DIR
 
-
-
-
-
 dag = DAG(
     'cvm_extract',
-    default_args='',
     description='Pipeline para extracao de dados CVM',
     catchup=False,
 )
