@@ -1,5 +1,5 @@
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import requests
 import zipfile
@@ -10,12 +10,13 @@ from tqdm import tqdm
 import os
 import shutil
 
-from settings import DEFAULT_ARGS, ROOT_DIR
+
+
 
 
 dag = DAG(
     'cvm_extract',
-    default_args=DEFAULT_ARGS,
+    default_args='',
     description='Pipeline para extracao de dados CVM',
     schedule_interval=timedelta(days=1),
     catchup=False,

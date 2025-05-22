@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.models import Variable
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
@@ -7,7 +8,15 @@ import dask.dataframe as dd
 from sqlalchemy import create_engine, text
 from tqdm import tqdm
 
-from settings import DATABASE_USERNAME, DATABASE_PASSWORD, DATABASE_IP, DATABASE_PORT
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+DATABASE_USERNAME = Variable.get("DATABASE_USERNAME")
+DATABASE_PASSWORD = Variable.get("DATABASE_PASSWORD")
+DATABASE_IP = Variable.get("DATABASE_IP")
+DATABASE_PORT = Variable.get("DATABASE_PORT")
+
 
 
 # Database connection using SQLAlchemy

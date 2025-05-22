@@ -6,13 +6,19 @@ from enum import Enum
 import numpy as np
 from sqlalchemy import create_engine
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 
 import dask.dataframe as dd
 
-from settings import DEFAULT_ARGS, ROOT_DIR, DATABASE_USERNAME, DATABASE_PASSWORD, DATABASE_IP, DATABASE_PORT
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+DATABASE_USERNAME = Variable.get("DATABASE_USERNAME")
+DATABASE_PASSWORD = Variable.get("DATABASE_PASSWORD")
+DATABASE_IP = Variable.get("DATABASE_IP")
+DATABASE_PORT = Variable.get("DATABASE_PORT")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

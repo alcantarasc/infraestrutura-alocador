@@ -1,8 +1,9 @@
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError, DataError 
 import dask.dataframe as dd
+from airflow.models import Variable
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -10,7 +11,13 @@ from datetime import datetime
 
 import logging
 
-from settings import DATABASE_USERNAME, DATABASE_PASSWORD, DATABASE_IP, DATABASE_PORT, ROOT_DIR
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+DATABASE_USERNAME = Variable.get("DATABASE_USERNAME")
+DATABASE_PASSWORD = Variable.get("DATABASE_PASSWORD")
+DATABASE_IP = Variable.get("DATABASE_IP")
+DATABASE_PORT = Variable.get("DATABASE_PORT")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
