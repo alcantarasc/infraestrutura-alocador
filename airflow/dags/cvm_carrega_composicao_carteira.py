@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from settings import ROOT_DIR
+from airflow.models import Variable
 import dask.dataframe as dd
 
 logging.basicConfig(level=logging.INFO)
