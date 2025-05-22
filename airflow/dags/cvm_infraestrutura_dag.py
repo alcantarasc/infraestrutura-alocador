@@ -20,7 +20,7 @@ dag = DAG(
 )
 
 def create_tables():
-    engine = create_engine(f'mysql+pymysql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
+    engine = create_engine(f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
     
     # ARQUIVO VELHO
     create_informacao_cadastral_sql = """

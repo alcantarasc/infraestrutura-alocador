@@ -58,7 +58,7 @@ dask_dtype = {'DT_CONFID_APLIC': 'object', 'TP_NEGOC': 'object', 'DT_FIM_VIGENCI
 
 def carrega_informacao_carteira():
     logger.info("Starting data load process")
-    URI = f'mysql+pymysql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm'
+    URI = f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm'
     print(URI)
     engine = create_engine(URI)
     

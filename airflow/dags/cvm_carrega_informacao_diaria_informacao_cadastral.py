@@ -42,7 +42,7 @@ def _trata_cnpj(dataframe: dd.DataFrame) -> dd.DataFrame:
 
 def load_data_to_db():
     logger.info("Starting data load process")
-    URI = f'mysql+pymysql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm'
+    URI = f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm'
     engine = create_engine(URI)
 
     # Load informacao_diaria
