@@ -21,7 +21,7 @@ DATABASE_PORT = Variable.get("DATABASE_PORT")
 
 # Database connection using SQLAlchemy
 def get_db_connection():
-    engine = create_engine(f'mysql+pymysql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
+    engine = create_engine(f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
     return engine
 
 # Create the table if it doesn't exist

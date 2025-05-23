@@ -66,7 +66,7 @@ def create_tables():
         TP_FUNDO VARCHAR(20),
         TRIB_LPRAZO VARCHAR(3),
         VL_PATRIM_LIQ NUMERIC(24, 2),
-        PRIMARY KEY pk_cnpj (CNPJ_FUNDO)
+        PRIMARY KEY (CNPJ_FUNDO)
     );
     """
     create_informacao_diaria_sql = """
@@ -76,7 +76,7 @@ def create_tables():
         ID_SUBCLASSE VARCHAR(15) NOT NULL DEFAULT 'NA',
         TP_FUNDO_CLASSE VARCHAR(15) NOT NULL DEFAULT 'NA',
         CAPTC_DIA NUMERIC(17, 2),
-        NR_COTST INT,
+        NR_COTST INTEGER,
         RESG_DIA NUMERIC(17, 2),
         VL_PATRIM_LIQ NUMERIC(17, 2),
         VL_QUOTA NUMERIC(27, 12),
@@ -108,9 +108,9 @@ def create_tables():
         VL_AQUIS_NEGOC NUMERIC(19, 2),
         VL_CUSTO_POS_FINAL NUMERIC(19, 2),
         VL_MERC_POS_FINAL NUMERIC(19, 2),
-        VL_VENDA_NEGOC NUMERIC(19, 2),
-        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+        VL_VENDA_NEGOC NUMERIC(19, 2)
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_dt_comptc_selic ON COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC (CNPJ_FUNDO_CLASSE, DT_COMPTC);
     """
     create_composicao_carteira_fundos_sql = """
     CREATE TABLE IF NOT EXISTS COMPOSICAO_CARTEIRA_FUNDOS (
@@ -133,9 +133,9 @@ def create_tables():
         VL_MERC_POS_FINAL NUMERIC(19, 2),
         VL_VENDA_NEGOC NUMERIC(19, 2),
         CNPJ_FUNDO_CLASSE_COTA VARCHAR(20),
-        NM_FUNDO_CLASSE_SUBCLASSE_COTA VARCHAR(100),
-        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+        NM_FUNDO_CLASSE_SUBCLASSE_COTA VARCHAR(100)
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_dt_comptc_fundos ON COMPOSICAO_CARTEIRA_FUNDOS (CNPJ_FUNDO_CLASSE, DT_COMPTC);
     """
 
     create_composicao_carteira_swaps_sql = """
@@ -157,9 +157,9 @@ def create_tables():
         VL_AQUIS_NEGOC NUMERIC(19, 2),
         VL_CUSTO_POS_FINAL NUMERIC(19, 2),
         VL_MERC_POS_FINAL NUMERIC(19, 2),
-        VL_VENDA_NEGOC NUMERIC(19, 2),
-        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+        VL_VENDA_NEGOC NUMERIC(19, 2)
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_dt_comptc_swaps ON COMPOSICAO_CARTEIRA_SWAPS (CNPJ_FUNDO_CLASSE, DT_COMPTC);
     """
 
     create_composicao_carteira_demais_codificados_sql = """
@@ -184,9 +184,9 @@ def create_tables():
         VL_AQUIS_NEGOC NUMERIC(19, 2),
         VL_CUSTO_POS_FINAL NUMERIC(19, 2),
         VL_MERC_POS_FINAL NUMERIC(19, 2),
-        VL_VENDA_NEGOC NUMERIC(19, 2),
-        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+        VL_VENDA_NEGOC NUMERIC(19, 2)
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_dt_comptc_demais ON COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS (CNPJ_FUNDO_CLASSE, DT_COMPTC);
     """
 
     create_composicao_carteira_deposito_prazo_if_sql = """
@@ -219,9 +219,9 @@ def create_tables():
         VL_AQUIS_NEGOC NUMERIC(19, 2),
         VL_CUSTO_POS_FINAL NUMERIC(19, 2),
         VL_MERC_POS_FINAL NUMERIC(19, 2),
-        VL_VENDA_NEGOC NUMERIC(19, 2),
-        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+        VL_VENDA_NEGOC NUMERIC(19, 2)
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_dt_comptc_deposito ON COMPOSICAO_CARTEIRA_DEPOSITO_PRAZO_IF (CNPJ_FUNDO_CLASSE, DT_COMPTC);
     """
 
     create_composicao_carteira_titulo_privado = """
@@ -254,9 +254,9 @@ def create_tables():
         VL_AQUIS_NEGOC NUMERIC(19, 2),
         VL_CUSTO_POS_FINAL NUMERIC(19, 2),
         VL_MERC_POS_FINAL NUMERIC(19, 2),
-        VL_VENDA_NEGOC NUMERIC(19, 2),
-        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+        VL_VENDA_NEGOC NUMERIC(19, 2)
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_dt_comptc_privado ON COMPOSICAO_CARTEIRA_TITULO_PRIVADO (CNPJ_FUNDO_CLASSE, DT_COMPTC);
     """
 
     create_composicao_carteira_investimento_exterior = """
@@ -292,9 +292,9 @@ def create_tables():
         VL_ATIVO_EXTERIOR NUMERIC(53, 0),
         VL_CUSTO_POS_FINAL NUMERIC(19, 2),
         VL_MERC_POS_FINAL NUMERIC(19, 2),
-        VL_VENDA_NEGOC NUMERIC(19, 2),
-        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+        VL_VENDA_NEGOC NUMERIC(19, 2)
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_dt_comptc_exterior ON COMPOSICAO_CARTEIRA_INVESTIMENTO_EXTERIOR (CNPJ_FUNDO_CLASSE, DT_COMPTC);
     """
 
     create_composicao_carteira_nao_codificados = """
@@ -318,9 +318,9 @@ def create_tables():
         VL_AQUIS_NEGOC NUMERIC(19, 2),
         VL_CUSTO_POS_FINAL NUMERIC(19, 2),
         VL_MERC_POS_FINAL NUMERIC(19, 2),
-        VL_VENDA_NEGOC NUMERIC(19, 2),
-        INDEX idx_cnpj_dt_comptc (CNPJ_FUNDO_CLASSE, DT_COMPTC)
+        VL_VENDA_NEGOC NUMERIC(19, 2)
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_dt_comptc_nao_codificados ON COMPOSICAO_CARTEIRA_NAO_CODIFICADOS (CNPJ_FUNDO_CLASSE, DT_COMPTC);
     """
     
     create_registro_fundo_sql = """
@@ -345,11 +345,11 @@ def create_tables():
         ADMINISTRADOR VARCHAR(100),
         TIPO_PESSOA_GESTOR CHAR(2),
         CPF_CNPJ_GESTOR VARCHAR(20),
-        GESTOR VARCHAR(100),
-        INDEX idx_cnpj_fundo (CNPJ_FUNDO),
-        INDEX idx_codigo_cvm (CODIGO_CVM),
-        INDEX idx_data_registro (DATA_REGISTRO)
+        GESTOR VARCHAR(100)
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_fundo ON REGISTRO_FUNDO (CNPJ_FUNDO);
+    CREATE INDEX IF NOT EXISTS idx_codigo_cvm ON REGISTRO_FUNDO (CODIGO_CVM);
+    CREATE INDEX IF NOT EXISTS idx_data_registro ON REGISTRO_FUNDO (DATA_REGISTRO);
     """
 
     registro_classe_sql = """
@@ -381,13 +381,13 @@ def create_tables():
         CUSTODIANTE VARCHAR(100),
         CNPJ_CONTROLADOR VARCHAR(20),
         CONTROLADOR VARCHAR(100),
-        INDEX idx_cnpj_classe (CNPJ_CLASSE),
-        INDEX idx_codigo_cvm (CODIGO_CVM),
         FOREIGN KEY (ID_REGISTRO_FUNDO) 
             REFERENCES REGISTRO_FUNDO(ID_REGISTRO_FUNDO)
             ON DELETE CASCADE
             ON UPDATE CASCADE
     );
+    CREATE INDEX IF NOT EXISTS idx_cnpj_classe ON REGISTRO_CLASSE (CNPJ_CLASSE);
+    CREATE INDEX IF NOT EXISTS idx_codigo_cvm_classe ON REGISTRO_CLASSE (CODIGO_CVM);
     """
 
     registro_subclasse_sql = """
@@ -402,12 +402,12 @@ def create_tables():
         FORMA_CONDOMINIO VARCHAR(100),
         EXCLUSIVO VARCHAR(1),
         PUBLICO_ALVO VARCHAR(15),
-        INDEX idx_codigo_cvm (CODIGO_CVM),
         FOREIGN KEY (ID_REGISTRO_CLASSE) 
             REFERENCES REGISTRO_CLASSE(ID_REGISTRO_CLASSE)
             ON DELETE CASCADE
             ON UPDATE CASCADE
     );
+    CREATE INDEX IF NOT EXISTS idx_codigo_cvm_subclasse ON REGISTRO_SUBCLASSE (CODIGO_CVM);
     """
     
 
