@@ -64,8 +64,9 @@ def load_data_to_db():
             # First read without dtype to check the actual data
             df_diaria = dd.read_csv(arquivo, delimiter=';', encoding='latin-1')
             
-            # Convert ID_SUBCLASSE to string, handling NaN values
-            df_diaria['ID_SUBCLASSE'] = df_diaria['ID_SUBCLASSE'].fillna('NA').astype(str)
+            # if not ID_SUBCLASSE in df_diaria, add it
+            if 'ID_SUBCLASSE' not in df_diaria.columns:
+                df_diaria['ID_SUBCLASSE'] = 'NA'
             
             if 'TP_FUNDO' in df_diaria.columns:
                 df_diaria = df_diaria.rename(columns={"TP_FUNDO": "TP_FUNDO_CLASSE"})
