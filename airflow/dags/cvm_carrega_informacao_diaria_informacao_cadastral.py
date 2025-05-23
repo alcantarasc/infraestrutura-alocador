@@ -98,7 +98,8 @@ def load_data_to_db():
             # Create a temporary table
             with engine.connect() as conn:
                 conn.execute("""
-                CREATE TEMPORARY TABLE temp_informacao_diaria LIKE informacao_diaria;
+                CREATE TEMPORARY TABLE temp_informacao_diaria AS 
+                SELECT * FROM informacao_diaria WHERE 1=0;
                 """)
                 logger.info("Temporary table created")
 
@@ -173,7 +174,8 @@ def load_data_to_db():
 
     with engine.connect() as conn:
         conn.execute("""
-        CREATE TEMPORARY TABLE temp_informacao_cadastral LIKE informacao_cadastral;
+        CREATE TEMPORARY TABLE temp_informacao_cadastral AS 
+        SELECT * FROM informacao_cadastral WHERE 1=0;
         """)
         logger.info("Temporary table created")
 
