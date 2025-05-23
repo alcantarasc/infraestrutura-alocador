@@ -61,7 +61,12 @@ def load_data_to_db():
     for arquivo in arquivos_no_diretorio_diaria:
         try:
             logger.info(f"Loading informacao_diaria data from file: {arquivo.name}")
-            df_diaria = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype={'ID_SUBCLASSE': 'str'})
+            # First read without dtype to check the actual data
+            df_diaria = dd.read_csv(arquivo, delimiter=';', encoding='latin-1')
+            
+            # Convert ID_SUBCLASSE to string, handling NaN values
+            df_diaria['ID_SUBCLASSE'] = df_diaria['ID_SUBCLASSE'].fillna('NA').astype(str)
+            
             if 'TP_FUNDO' in df_diaria.columns:
                 df_diaria = df_diaria.rename(columns={"TP_FUNDO": "TP_FUNDO_CLASSE"})
             
@@ -70,9 +75,8 @@ def load_data_to_db():
             
             df_diaria = _trata_cnpj(df_diaria)
             
-            df_diaria['ID_SUBCLASSE'] = df_diaria['ID_SUBCLASSE'].fillna('NA')
-            
-            logger.info(df_diaria.columns)
+            logger.info(f"Columns in dataframe: {df_diaria.columns}")
+            logger.info(f"Sample of ID_SUBCLASSE values: {df_diaria['ID_SUBCLASSE'].head().compute()}")
 
             num_rows_before = df_diaria.shape[0].compute()
             
@@ -88,7 +92,7 @@ def load_data_to_db():
                 conn.execute("""
                 DROP TABLE IF EXISTS TEMP_INFORMACAO_DIARIA;
                 """)
-                logger.info("Temporary table created")
+                logger.info("Temporary table dropped if existed")
 
             # Create a temporary table
             with engine.connect() as conn:
@@ -121,6 +125,7 @@ def load_data_to_db():
 
         except Exception as e:
             logger.error(f"Error loading informacao_diaria from file {arquivo.name}: {e}")
+            raise  # Re-raise the exception to ensure the DAG task fails
     
     # load informacao cadastral
     arquivo_cadastral = ROOT_DIR / 'info-cadastral' / 'info-cadastral.csv'
