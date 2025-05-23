@@ -99,7 +99,7 @@ def load_data_to_db():
             with engine.connect() as conn:
                 conn.execute("""
                 CREATE TEMPORARY TABLE temp_informacao_diaria AS 
-                SELECT * FROM informacao_diaria WHERE 1=0;
+                TABLE informacao_diaria;
                 """)
                 logger.info("Temporary table created")
 
