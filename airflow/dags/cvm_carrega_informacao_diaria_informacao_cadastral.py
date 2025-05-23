@@ -76,14 +76,11 @@ def load_data_to_db():
             
             df_diaria = _trata_cnpj(df_diaria)
             
-            logger.info(f"Columns in dataframe: {df_diaria.columns}")
-            logger.info(f"Sample of ID_SUBCLASSE values: {df_diaria['ID_SUBCLASSE'].head().compute()}")
-
-            num_rows_before = df_diaria.shape[0].compute()
+            num_rows_before = len(df_diaria.columns)
             
             df_diaria = df_diaria.drop_duplicates(subset=['TP_FUNDO_CLASSE', 'CNPJ_FUNDO_CLASSE', 'ID_SUBCLASSE', 'DT_COMPTC'], keep='last')
             
-            num_rows_after = df_diaria.shape[0].compute()
+            num_rows_after = len(df_diaria.columns)
             logger.info(f"Number of rows before and after dropping duplicates: {num_rows_before} -> {num_rows_after} ({num_rows_after - num_rows_before} rows removed)")
             # Compute Dask DataFrame to Pandas DataFrame
             df_diaria = df_diaria.compute()  # Ensure that Dask DataFrame operations are executed and converted to Pandas DataFrame
