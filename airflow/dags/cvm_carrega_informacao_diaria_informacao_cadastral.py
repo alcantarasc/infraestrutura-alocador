@@ -79,10 +79,43 @@ def load_data_to_db():
             # Compute Dask DataFrame to Pandas DataFrame
             df_diaria = df_diaria.compute()  # Ensure that Dask DataFrame operations are executed and converted to Pandas DataFrame
             
-            # Insert data directly into informacao_diaria table
+            # Convert column names to lowercase
             df_diaria.columns = df_diaria.columns.str.lower()
-            df_diaria.to_sql('informacao_diaria', con=engine, if_exists='append', index=False)
-            logger.info(f"Data loaded directly into informacao_diaria table from file: {arquivo.name}")
+
+            # Create temporary table
+            with engine.connect() as conn:
+                conn.execute("""
+                DROP TABLE IF EXISTS TEMP_INFORMACAO_DIARIA;
+                CREATE TEMPORARY TABLE temp_informacao_diaria AS 
+                SELECT * FROM informacao_diaria WHERE 1=0;
+                """)
+                logger.info("Temporary table created")
+
+            # Load data into temp table
+            df_diaria.to_sql('temp_informacao_diaria', con=engine, if_exists='append', index=False)
+            logger.info(f"Data loaded into temporary table from file: {arquivo.name}")
+
+            # Merge data from temp table to main table
+            with engine.connect() as conn:
+                conn.execute("""
+                INSERT INTO informacao_diaria (
+                    cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
+                    captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
+                )
+                SELECT 
+                    cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
+                    captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
+                FROM temp_informacao_diaria
+                ON CONFLICT (cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe) 
+                DO UPDATE SET
+                    captc_dia = EXCLUDED.captc_dia,
+                    nr_cotst = EXCLUDED.nr_cotst,
+                    resg_dia = EXCLUDED.resg_dia,
+                    vl_patrim_liq = EXCLUDED.vl_patrim_liq,
+                    vl_quota = EXCLUDED.vl_quota,
+                    vl_total = EXCLUDED.vl_total;
+                """)
+                logger.info(f"Data merged from temporary table into informacao_diaria from file: {arquivo.name}")
 
         except Exception as e:
             logger.error(f"Error loading informacao_diaria from file {arquivo.name}: {e}")
