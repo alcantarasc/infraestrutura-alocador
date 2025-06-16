@@ -80,6 +80,7 @@ def load_data_to_db():
             df_diaria = df_diaria.compute()  # Ensure that Dask DataFrame operations are executed and converted to Pandas DataFrame
             
             # Insert data directly into informacao_diaria table
+            df_diaria.columns = df_diaria.columns.str.lower()
             df_diaria.to_sql('informacao_diaria', con=engine, if_exists='append', index=False)
             logger.info(f"Data loaded directly into informacao_diaria table from file: {arquivo.name}")
 
