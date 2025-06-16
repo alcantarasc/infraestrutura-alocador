@@ -95,11 +95,21 @@ def load_data_to_db():
                 """)
                 logger.info("Temporary table dropped if existed")
 
-            # Create a temporary table
+            # Create a temporary table with the exact structure we need
             with engine.connect() as conn:
                 conn.execute("""
-                CREATE TEMPORARY TABLE temp_informacao_diaria AS 
-                TABLE informacao_diaria;
+                CREATE TEMPORARY TABLE temp_informacao_diaria (
+                    CNPJ_FUNDO_CLASSE VARCHAR(20) NOT NULL,
+                    DT_COMPTC DATE NOT NULL,
+                    ID_SUBCLASSE VARCHAR(15) NOT NULL DEFAULT 'NA',
+                    TP_FUNDO_CLASSE VARCHAR(15) NOT NULL DEFAULT 'NA',
+                    CAPTC_DIA NUMERIC(17, 2),
+                    NR_COTST INTEGER,
+                    RESG_DIA NUMERIC(17, 2),
+                    VL_PATRIM_LIQ NUMERIC(17, 2),
+                    VL_QUOTA NUMERIC(27, 12),
+                    VL_TOTAL NUMERIC(17, 2)
+                );
                 """)
                 logger.info("Temporary table created")
 
