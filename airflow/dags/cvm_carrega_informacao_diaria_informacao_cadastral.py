@@ -76,64 +76,12 @@ def load_data_to_db():
             
             df_diaria = _trata_cnpj(df_diaria)
             
-            # Compute the counts before dropping duplicates
-            num_rows_before = df_diaria.shape[0].compute()
-            
-            df_diaria = df_diaria.drop_duplicates(subset=['TP_FUNDO_CLASSE', 'CNPJ_FUNDO_CLASSE', 'ID_SUBCLASSE', 'DT_COMPTC'], keep='last')
-            
-            # Compute the counts after dropping duplicates
-            num_rows_after = df_diaria.shape[0].compute()
-            logger.info(f"Number of rows before and after dropping duplicates: {num_rows_before} -> {num_rows_after} ({num_rows_after - num_rows_before} rows removed)")
-            
             # Compute Dask DataFrame to Pandas DataFrame
             df_diaria = df_diaria.compute()  # Ensure that Dask DataFrame operations are executed and converted to Pandas DataFrame
             
-            # Create a temporary table
-            with engine.connect() as conn:
-                conn.execute("""
-                DROP TABLE IF EXISTS TEMP_INFORMACAO_DIARIA;
-                """)
-                logger.info("Temporary table dropped if existed")
-
-            # Create a temporary table with the exact structure we need
-            with engine.connect() as conn:
-                conn.execute("""
-                CREATE TEMPORARY TABLE temp_informacao_diaria (
-                    CNPJ_FUNDO_CLASSE VARCHAR(20) NOT NULL,
-                    DT_COMPTC DATE NOT NULL,
-                    ID_SUBCLASSE VARCHAR(15) NOT NULL DEFAULT 'NA',
-                    TP_FUNDO_CLASSE VARCHAR(15) NOT NULL DEFAULT 'NA',
-                    CAPTC_DIA NUMERIC(17, 2),
-                    NR_COTST INTEGER,
-                    RESG_DIA NUMERIC(17, 2),
-                    VL_PATRIM_LIQ NUMERIC(17, 2),
-                    VL_QUOTA NUMERIC(27, 12),
-                    VL_TOTAL NUMERIC(17, 2)
-                );
-                """)
-                logger.info("Temporary table created")
-
-            # Insert data into the temporary table using Pandas' to_sql
-            df_diaria.to_sql('temp_informacao_diaria', con=engine, if_exists='append', index=False)
-            logger.info(f"Data loaded into temporary table from file: {arquivo.name}")
-
-            # Merge data from the temporary table into the main table
-            with engine.connect() as conn:
-                conn.execute("""
-                INSERT INTO informacao_diaria (CNPJ_FUNDO_CLASSE, DT_COMPTC, ID_SUBCLASSE, CAPTC_DIA, NR_COTST, RESG_DIA, TP_FUNDO_CLASSE, VL_PATRIM_LIQ, VL_QUOTA, VL_TOTAL)
-                SELECT CNPJ_FUNDO_CLASSE, DT_COMPTC, ID_SUBCLASSE, CAPTC_DIA, NR_COTST, RESG_DIA, TP_FUNDO_CLASSE, VL_PATRIM_LIQ, VL_QUOTA, VL_TOTAL
-                FROM temp_informacao_diaria
-                ON DUPLICATE KEY UPDATE
-                    CAPTC_DIA = VALUES(CAPTC_DIA),
-                    NR_COTST = VALUES(NR_COTST),
-                    RESG_DIA = VALUES(RESG_DIA),
-                    VL_PATRIM_LIQ = VALUES(VL_PATRIM_LIQ),
-                    VL_QUOTA = VALUES(VL_QUOTA),
-                    VL_TOTAL = VALUES(VL_TOTAL),
-                    ID_SUBCLASSE = VALUES(ID_SUBCLASSE),
-                    TP_FUNDO_CLASSE = VALUES(TP_FUNDO_CLASSE);
-                """)
-                logger.info("Data merged from temporary table into informacao_diaria")
+            # Insert data directly into informacao_diaria table
+            df_diaria.to_sql('informacao_diaria', con=engine, if_exists='append', index=False)
+            logger.info(f"Data loaded directly into informacao_diaria table from file: {arquivo.name}")
 
         except Exception as e:
             logger.error(f"Error loading informacao_diaria from file {arquivo.name}: {e}")
