@@ -51,13 +51,16 @@ def load_data_to_db():
 
     # ordena os arquivos por data no nome inf_diario_YYYYMM.csv, transformando em date para ordenar
     arquivos_no_diretorio_diaria.sort(key=lambda x: datetime.strptime(x.name.split('_')[3].split('.')[0], '%Y%m'))
-
+    
+    # mantem apenas arquivos a partir de dezembro/2023
+    arquivos_no_diretorio_diaria = [arquivo for arquivo in arquivos_no_diretorio_diaria 
+                                  if datetime.strptime(arquivo.name.split('_')[3].split('.')[0], '%Y%m') >= datetime(2023, 12, 1)]
     
     if not arquivos_no_diretorio_diaria:
         logger.error("No file found for informacao_diaria")
         raise FileNotFoundError('Não foi encontrado arquivo para informação diária')
 
-
+    # mantem apenas data 
     for arquivo in arquivos_no_diretorio_diaria:
         try:
             logger.info(f"Loading informacao_diaria data from file: {arquivo.name}")
@@ -81,6 +84,9 @@ def load_data_to_db():
             
             # Convert column names to lowercase
             df_diaria.columns = df_diaria.columns.str.lower()
+
+            # Fill null id_subclasse with 'NA'
+            df_diaria['id_subclasse'] = df_diaria['id_subclasse'].fillna('NA')
 
             # Create temporary table
             with engine.connect() as conn:
