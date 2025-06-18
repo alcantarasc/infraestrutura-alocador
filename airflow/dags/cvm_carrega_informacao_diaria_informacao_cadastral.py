@@ -54,7 +54,7 @@ def load_data_to_db():
     
     # mantem apenas arquivos a partir de dezembro/2023
     arquivos_no_diretorio_diaria = [arquivo for arquivo in arquivos_no_diretorio_diaria 
-                                  if datetime.strptime(arquivo.name.split('_')[3].split('.')[0], '%Y%m') >= datetime(2023, 12, 1)]
+                                  if datetime.strptime(arquivo.name.split('_')[3].split('.')[0], '%Y%m') >= datetime(2024, 9, 1)]
     
     if not arquivos_no_diretorio_diaria:
         logger.error("No file found for informacao_diaria")
@@ -64,8 +64,8 @@ def load_data_to_db():
     for arquivo in arquivos_no_diretorio_diaria:
         try:
             logger.info(f"Loading informacao_diaria data from file: {arquivo.name}")
-            # First read without dtype to check the actual data
-            df_diaria = dd.read_csv(arquivo, delimiter=';', encoding='latin-1')
+            # Read with explicit dtype to avoid inference issues
+            df_diaria = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype={'ID_SUBCLASSE': 'object'})
             
             # if not ID_SUBCLASSE in df_diaria, add it
             if 'ID_SUBCLASSE' not in df_diaria.columns:
