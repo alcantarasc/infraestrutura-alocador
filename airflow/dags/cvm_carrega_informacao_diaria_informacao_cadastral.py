@@ -88,6 +88,29 @@ def load_data_to_db():
             # Fill null id_subclasse with 'NA'
             df_diaria['id_subclasse'] = df_diaria['id_subclasse'].fillna('NA')
 
+            # Remove duplicates based on unique constraint columns
+            df_diaria_before = len(df_diaria)
+            
+            # Find duplicates before dropping them
+            duplicates_mask = df_diaria.duplicated(
+                subset=['cnpj_fundo_classe', 'dt_comptc', 'id_subclasse', 'tp_fundo_classe'],
+                keep=False
+            )
+            duplicate_records = df_diaria[duplicates_mask]
+            
+            if len(duplicate_records) > 0:
+                logger.info(f"Found {len(duplicate_records)} duplicate records in {arquivo.name}:")
+                for idx, row in duplicate_records.iterrows():
+                    logger.info(f"  Duplicate: CNPJ={row['cnpj_fundo_classe']}, Date={row['dt_comptc']}, Subclass={row['id_subclasse']}, Type={row['tp_fundo_classe']}")
+            
+            df_diaria = df_diaria.drop_duplicates(
+                subset=['cnpj_fundo_classe', 'dt_comptc', 'id_subclasse', 'tp_fundo_classe'],
+                keep='last'  # Keep the last occurrence of duplicates
+            )
+            df_diaria_after = len(df_diaria)
+            duplicates_dropped = df_diaria_before - df_diaria_after
+            logger.info(f"Dropped {duplicates_dropped} duplicates from informacao_diaria for file {arquivo.name} (before: {df_diaria_before}, after: {df_diaria_after})")
+
             # Create temporary table
             with engine.connect() as conn:
                 conn.execute("""
@@ -146,7 +169,11 @@ def load_data_to_db():
     df_cadastral['DENOM_SOCIAL'] = df_cadastral['DENOM_SOCIAL'].apply(truncate_value, args=(100,))
     df_cadastral['INF_TAXA_PERFM'] = df_cadastral['INF_TAXA_PERFM'].apply(truncate_value, args=(400,))
 
+    df_cadastral_before = len(df_cadastral)
     df_cadastral = df_cadastral.drop_duplicates(subset=['CNPJ_FUNDO'], keep='first')
+    df_cadastral_after = len(df_cadastral)
+    duplicates_dropped = df_cadastral_before - df_cadastral_after
+    logger.info(f"Dropped {duplicates_dropped} duplicates from informacao_cadastral (before: {df_cadastral_before}, after: {df_cadastral_after})")
     
     # Historical
     df_cadastral_historico = pd.read_csv(arquivo_cadastral_historico, delimiter=';', encoding='latin-1', on_bad_lines='skip', engine='python')
@@ -155,8 +182,18 @@ def load_data_to_db():
     
     # Insert CNPJ_FUNDO that are not in df_cadastral
     cnpj_fundos = df_cadastral['CNPJ_FUNDO'].unique()
+    df_cadastral_historico_before = len(df_cadastral_historico)
     df_cadastral_historico = df_cadastral_historico[~df_cadastral_historico['CNPJ_FUNDO'].isin(cnpj_fundos)]
+    df_cadastral_historico_after = len(df_cadastral_historico)
+    duplicates_dropped = df_cadastral_historico_before - df_cadastral_historico_after
+    logger.info(f"Dropped {duplicates_dropped} duplicates from historical data (CNPJ already exists in current data) (before: {df_cadastral_historico_before}, after: {df_cadastral_historico_after})")
+    
+    df_cadastral_historico_before = len(df_cadastral_historico)
     df_cadastral_historico.drop_duplicates(subset=['CNPJ_FUNDO'], keep='last', inplace=True)
+    df_cadastral_historico_after = len(df_cadastral_historico)
+    duplicates_dropped = df_cadastral_historico_before - df_cadastral_historico_after
+    logger.info(f"Dropped {duplicates_dropped} duplicates from historical data (keep last) (before: {df_cadastral_historico_before}, after: {df_cadastral_historico_after})")
+    
     # Drop unused columns
     df_cadastral_historico.drop(columns=['DT_INI_DENOM_SOCIAL', 'DT_FIM_DENOM_SOCIAL'], inplace=True)
 
@@ -286,7 +323,11 @@ def load_data_to_db():
     }, inplace=True)
 
     # drop duplicados
+    df_registro_fundo_before = len(df_registro_fundo)
     df_registro_fundo = df_registro_fundo.drop_duplicates(subset=['ID_REGISTRO_FUNDO'], keep='last')
+    df_registro_fundo_after = len(df_registro_fundo)
+    duplicates_dropped = df_registro_fundo_before - df_registro_fundo_after
+    logger.info(f"Dropped {duplicates_dropped} duplicates from registro_fundo (before: {df_registro_fundo_before}, after: {df_registro_fundo_after})")
 
     # Create a temporary table for registro_fundo
     with engine.connect() as conn:
