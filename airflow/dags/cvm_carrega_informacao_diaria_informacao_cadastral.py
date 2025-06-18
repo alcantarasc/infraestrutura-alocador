@@ -56,7 +56,7 @@ def load_data_to_db():
     
     # mantem apenas arquivos a partir de dezembro/2023
     arquivos_no_diretorio_diaria = [arquivo for arquivo in arquivos_no_diretorio_diaria 
-                                  if datetime.strptime(arquivo.name.split('_')[3].split('.')[0], '%Y%m') >= datetime(2024, 9, 1)]
+                                  if datetime.strptime(arquivo.name.split('_')[3].split('.')[0], '%Y%m') >= datetime(2025, 3, 1)]
     
     if not arquivos_no_diretorio_diaria:
         logger.error("No file found for informacao_diaria")
@@ -119,7 +119,7 @@ def load_data_to_db():
             logger.info(f"Dropped {duplicates_dropped} duplicates from informacao_diaria for file {arquivo.name} (before: {df_diaria_before}, after: {df_diaria_after})")
 
             # Create temporary table
-            with engine.connect() as conn:
+            with engine.begin() as conn:
                 conn.execute(text("DROP TABLE IF EXISTS TEMP_INFORMACAO_DIARIA"))
                 conn.execute(text("""
                 CREATE TEMPORARY TABLE temp_informacao_diaria AS 
@@ -136,7 +136,7 @@ def load_data_to_db():
             
             for i, batch in enumerate(batches):
                 batch_start = time.time()
-                batch.to_sql('temp_informacao_diaria', con=engine, if_exists='append', index=False, method='multi')
+                batch.to_sql('temp_informacao_diaria', con=conn, if_exists='append', index=False, method='multi')
                 batch_time = time.time() - batch_start
                 logger.info(f"Batch {i+1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
             
@@ -145,25 +145,24 @@ def load_data_to_db():
 
             # Merge data from temp table to main table
             merge_start = time.time()
-            with engine.connect() as conn:
-                conn.execute(text("""
-                INSERT INTO informacao_diaria (
-                    cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
-                    captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
-                )
-                SELECT 
-                    cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
-                    captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
-                FROM temp_informacao_diaria
-                ON CONFLICT (cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe) 
-                DO UPDATE SET
-                    captc_dia = EXCLUDED.captc_dia,
-                    nr_cotst = EXCLUDED.nr_cotst,
-                    resg_dia = EXCLUDED.resg_dia,
-                    vl_patrim_liq = EXCLUDED.vl_patrim_liq,
-                    vl_quota = EXCLUDED.vl_quota,
-                    vl_total = EXCLUDED.vl_total
-                """))
+            conn.execute(text("""
+            INSERT INTO informacao_diaria (
+                cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
+                captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
+            )
+            SELECT 
+                cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
+                captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
+            FROM temp_informacao_diaria
+            ON CONFLICT (cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe) 
+            DO UPDATE SET
+                captc_dia = EXCLUDED.captc_dia,
+                nr_cotst = EXCLUDED.nr_cotst,
+                resg_dia = EXCLUDED.resg_dia,
+                vl_patrim_liq = EXCLUDED.vl_patrim_liq,
+                vl_quota = EXCLUDED.vl_quota,
+                vl_total = EXCLUDED.vl_total
+            """))
             
             merge_time = time.time() - merge_start
             file_total_time = time.time() - file_start_time
@@ -225,11 +224,11 @@ def load_data_to_db():
     df_cadastral = pd.concat([df_cadastral, df_cadastral_historico], ignore_index=True)
 
     # Create a TEMP table like informacao_cadastral, then merge
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_INFORMACAO_CADASTRAL"))
         logger.info("Temporary table dropped if existed")
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("""
         CREATE TEMPORARY TABLE temp_informacao_cadastral AS 
         SELECT * FROM informacao_cadastral WHERE 1=0
@@ -245,7 +244,7 @@ def load_data_to_db():
     
     for i, batch in enumerate(batches):
         batch_start = time.time()
-        batch.to_sql('temp_informacao_cadastral', con=engine, if_exists='append', index=False, method='multi')
+        batch.to_sql('temp_informacao_cadastral', con=conn, if_exists='append', index=False, method='multi')
         batch_time = time.time() - batch_start
         logger.info(f"Batch {i+1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
     
@@ -258,7 +257,7 @@ def load_data_to_db():
     # using all columns. Adjust if you need to skip or rename columns.
 
     merge_start = time.time()
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("""
             INSERT INTO informacao_cadastral (
                 ADMIN, AUDITOR, CD_CVM, CLASSE, CLASSE_ANBIMA, CNPJ_ADMIN,
@@ -368,11 +367,11 @@ def load_data_to_db():
     logger.info(f"Dropped {duplicates_dropped} duplicates from registro_fundo (before: {df_registro_fundo_before}, after: {df_registro_fundo_after})")
 
     # Create a temporary table for registro_fundo
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_FUNDO"))
         logger.info("Temporary table dropped if existed")
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("CREATE TEMPORARY TABLE temp_registro_fundo LIKE registro_fundo"))
         logger.info("Temporary table created for registro_fundo")
 
@@ -385,7 +384,7 @@ def load_data_to_db():
     
     for i, batch in enumerate(batches):
         batch_start = time.time()
-        batch.to_sql('temp_registro_fundo', con=engine, if_exists='append', index=False, method='multi')
+        batch.to_sql('temp_registro_fundo', con=conn, if_exists='append', index=False, method='multi')
         batch_time = time.time() - batch_start
         logger.info(f"Batch {i+1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
     
@@ -393,7 +392,7 @@ def load_data_to_db():
 
     # Merge data from temp table to main table
     merge_start = time.time()
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("""
         INSERT INTO registro_fundo (
             ID_REGISTRO_FUNDO, CNPJ_FUNDO, CODIGO_CVM, DATA_REGISTRO, DATA_CONSTITUICAO,
@@ -464,11 +463,11 @@ def load_data_to_db():
     }, inplace=True)
 
     # Create a temporary table for registro_classe
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_CLASSE"))
         logger.info("Temporary table dropped if existed for registro_classe")
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("CREATE TEMPORARY TABLE temp_registro_classe LIKE registro_classe"))
         logger.info("Temporary table created for registro_classe")
 
@@ -481,7 +480,7 @@ def load_data_to_db():
     
     for i, batch in enumerate(batches):
         batch_start = time.time()
-        batch.to_sql('temp_registro_classe', con=engine, if_exists='append', index=False, method='multi')
+        batch.to_sql('temp_registro_classe', con=conn, if_exists='append', index=False, method='multi')
         batch_time = time.time() - batch_start
         logger.info(f"Batch {i+1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
     
@@ -489,7 +488,7 @@ def load_data_to_db():
 
     
     merge_start = time.time()
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("""
         INSERT INTO registro_classe (
             ID_REGISTRO_CLASSE, ID_REGISTRO_FUNDO, CNPJ_CLASSE, CODIGO_CVM, DATA_REGISTRO,
@@ -557,11 +556,11 @@ def load_data_to_db():
     }, inplace=True)
 
     # Create a temporary table for registro_subclasse
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_SUBCLASSE"))
         logger.info("Temporary table dropped if existed for registro_subclasse")
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("CREATE TEMPORARY TABLE temp_registro_subclasse LIKE registro_subclasse"))
         logger.info("Temporary table created for registro_subclasse")
 
@@ -574,7 +573,7 @@ def load_data_to_db():
     
     for i, batch in enumerate(batches):
         batch_start = time.time()
-        batch.to_sql('temp_registro_subclasse', con=engine, if_exists='append', index=False, method='multi')
+        batch.to_sql('temp_registro_subclasse', con=conn, if_exists='append', index=False, method='multi')
         batch_time = time.time() - batch_start
         logger.info(f"Batch {i+1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
     
@@ -582,7 +581,7 @@ def load_data_to_db():
 
     # Merge data from temp table to main table
     merge_start = time.time()
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("""
         INSERT INTO registro_subclasse (
             ID_REGISTRO_CLASSE, ID_SUBCLASSE, CODIGO_CVM, DATA_CONSTITUICAO,
