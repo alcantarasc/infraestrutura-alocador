@@ -118,7 +118,7 @@ def load_data_to_db():
             duplicates_dropped = df_diaria_before - df_diaria_after
             logger.info(f"Dropped {duplicates_dropped} duplicates from informacao_diaria for file {arquivo.name} (before: {df_diaria_before}, after: {df_diaria_after})")
 
-            # Create temporary table
+            # Create temporary table and load data into temp table with batch processing
             with engine.begin() as conn:
                 conn.execute(text("DROP TABLE IF EXISTS TEMP_INFORMACAO_DIARIA"))
                 conn.execute(text("""
@@ -127,46 +127,46 @@ def load_data_to_db():
                 """))
                 logger.info("Temporary table created")
 
-            # Load data into temp table with batch processing
-            batch_size = 10000
-            total_rows = len(df_diaria)
-            batches = [df_diaria[i:i + batch_size] for i in range(0, total_rows, batch_size)]
-            
-            logger.info(f"Loading {total_rows} rows in {len(batches)} batches of {batch_size}")
-            
-            for i, batch in enumerate(batches):
-                batch_start = time.time()
-                batch.to_sql('temp_informacao_diaria', con=conn, if_exists='append', index=False, method='multi')
-                batch_time = time.time() - batch_start
-                logger.info(f"Batch {i+1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
-            
-            load_time = time.time() - file_start_time
-            logger.info(f"Data loaded into temporary table from file: {arquivo.name} in {load_time:.2f}s")
+                # Load data into temp table with batch processing
+                batch_size = 10000
+                total_rows = len(df_diaria)
+                batches = [df_diaria[i:i + batch_size] for i in range(0, total_rows, batch_size)]
+                
+                logger.info(f"Loading {total_rows} rows in {len(batches)} batches of {batch_size}")
+                
+                for i, batch in enumerate(batches):
+                    batch_start = time.time()
+                    batch.to_sql('temp_informacao_diaria', con=conn, if_exists='append', index=False, method='multi')
+                    batch_time = time.time() - batch_start
+                    logger.info(f"Batch {i+1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
 
-            # Merge data from temp table to main table
-            merge_start = time.time()
-            conn.execute(text("""
-            INSERT INTO informacao_diaria (
-                cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
-                captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
-            )
-            SELECT 
-                cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
-                captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
-            FROM temp_informacao_diaria
-            ON CONFLICT (cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe) 
-            DO UPDATE SET
-                captc_dia = EXCLUDED.captc_dia,
-                nr_cotst = EXCLUDED.nr_cotst,
-                resg_dia = EXCLUDED.resg_dia,
-                vl_patrim_liq = EXCLUDED.vl_patrim_liq,
-                vl_quota = EXCLUDED.vl_quota,
-                vl_total = EXCLUDED.vl_total
-            """))
-            
-            merge_time = time.time() - merge_start
-            file_total_time = time.time() - file_start_time
-            logger.info(f"Data merged from temporary table into informacao_diaria from file: {arquivo.name} in {merge_time:.2f}s (total file time: {file_total_time:.2f}s)")
+                load_time = time.time() - file_start_time
+                logger.info(f"Data loaded into temporary table from file: {arquivo.name} in {load_time:.2f}s")
+
+                # Merge data from temp table to main table
+                merge_start = time.time()
+                conn.execute(text("""
+                INSERT INTO informacao_diaria (
+                    cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
+                    captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
+                )
+                SELECT 
+                    cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe,
+                    captc_dia, nr_cotst, resg_dia, vl_patrim_liq, vl_quota, vl_total
+                FROM temp_informacao_diaria
+                ON CONFLICT (cnpj_fundo_classe, dt_comptc, id_subclasse, tp_fundo_classe) 
+                DO UPDATE SET
+                    captc_dia = EXCLUDED.captc_dia,
+                    nr_cotst = EXCLUDED.nr_cotst,
+                    resg_dia = EXCLUDED.resg_dia,
+                    vl_patrim_liq = EXCLUDED.vl_patrim_liq,
+                    vl_quota = EXCLUDED.vl_quota,
+                    vl_total = EXCLUDED.vl_total
+                """))
+                
+                merge_time = time.time() - merge_start
+                file_total_time = time.time() - file_start_time
+                logger.info(f"Data merged from temporary table into informacao_diaria from file: {arquivo.name} in {merge_time:.2f}s (total file time: {file_total_time:.2f}s)")
 
         except Exception as e:
             logger.error(f"Error loading informacao_diaria from file {arquivo.name}: {e}")
