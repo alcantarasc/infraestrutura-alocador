@@ -10,6 +10,7 @@ from tqdm import tqdm
 import os
 import shutil
 from settings import ROOT_DIR
+import logging
 
 default_args = {
     'owner': 'airflow',
@@ -42,6 +43,7 @@ def extrair_informacao_cadastral(**kwargs):
     # 1) Download do cad_fi.csv
     # ---------------------
     url_csv = base_url + 'cad_fi.csv'
+    logging.info(f"Baixando arquivo CSV principal: {url_csv}")
     dados_csv = requests.get(url_csv)
     # Convertemos para texto usando encoding 'latin-1'
     csv_content = dados_csv.content.decode('latin-1')
@@ -55,11 +57,13 @@ def extrair_informacao_cadastral(**kwargs):
         
         # Move (ou sobrescreve) o arquivo para a pasta final
         shutil.move(str(csv_temp_path), diretorio / csv_temp_path.name)
+    logging.info(f"Arquivo CSV principal baixado e movido para {diretorio}")
     
     # ---------------------
     # 2) Download do cad_fi_hist.zip e extração
     # ---------------------
     url_zip = base_url + 'cad_fi_hist.zip'
+    logging.info(f"Baixando arquivo ZIP de histórico: {url_zip}")
     with tempfile.TemporaryDirectory() as tmpdirname:
         zip_temp_path = Path(tmpdirname) / 'cad_fi_hist.zip'
         
@@ -74,11 +78,13 @@ def extrair_informacao_cadastral(**kwargs):
         # Move os arquivos CSV extraídos para o diretório final
         for arquivo_extraido in Path(tmpdirname).glob('*.csv'):
             shutil.move(str(arquivo_extraido), diretorio / arquivo_extraido.name)
+            logging.info(f"Arquivo histórico extraído e movido: {arquivo_extraido.name}")
 
     # ---------------------
     # 3) Download do registro_fundo_classe.zip e extração
     # ---------------------
     url_zip = base_url + 'registro_fundo_classe.zip'
+    logging.info(f"Baixando arquivo ZIP de registro de fundo/classe: {url_zip}")
     with tempfile.TemporaryDirectory() as tmpdirname:
         zip_temp_path = Path(tmpdirname) / 'registro_fundo_classe.zip'
         
@@ -93,6 +99,7 @@ def extrair_informacao_cadastral(**kwargs):
         # Move os arquivos CSV extraídos para o diretório final
         for arquivo_extraido in Path(tmpdirname).glob('*.csv'):
             shutil.move(str(arquivo_extraido), diretorio / arquivo_extraido.name)
+            logging.info(f"Arquivo registro extraído e movido: {arquivo_extraido.name}")
 
 def extrair_composicao_carteira(**kwargs):
     URL = 'https://dados.cvm.gov.br/dados/FI/DOC/CDA/DADOS/'
@@ -106,7 +113,9 @@ def extrair_composicao_carteira(**kwargs):
     # Create the directory if it doesn't exist
     diretorio.mkdir(parents=True, exist_ok=True)
     
-    for url in tqdm(urls, desc='Atualizando composicao carteira', unit='arquivo', total=len(urls)):
+    total = len(urls)
+    for idx, url in enumerate(urls, 1):
+        logging.info(f"Baixando arquivo {idx}/{total}: {url}")
         dados = requests.get(url, stream=True)
         with tempfile.TemporaryDirectory() as tmpdirname:
             with open(tmpdirname + '/arq.zip', 'wb') as f:
@@ -119,8 +128,8 @@ def extrair_composicao_carteira(**kwargs):
             arquivo_zip.close()
 
             for arquivo in Path(tmpdirname).glob('*.csv'):
-                # Always overwrite the file
                 shutil.move(str(arquivo), diretorio / arquivo.name)
+                logging.info(f"Arquivo {idx}/{total} extraído e movido: {arquivo.name}")
 
 def extrair_informacao_diaria(**kwargs):
     URL = 'https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/'
@@ -134,7 +143,9 @@ def extrair_informacao_diaria(**kwargs):
     # Create the directory if it doesn't exist
     diretorio.mkdir(parents=True, exist_ok=True)
     
-    for url in tqdm(urls, desc='Atualizando informacao diaria', unit='arquivo', total=len(urls)):
+    total = len(urls)
+    for idx, url in enumerate(urls, 1):
+        logging.info(f"Baixando arquivo {idx}/{total}: {url}")
         dados = requests.get(url, stream=True)
         with tempfile.TemporaryDirectory() as tmpdirname:
             with open(tmpdirname + '/arq.zip', 'wb') as f:
@@ -147,8 +158,8 @@ def extrair_informacao_diaria(**kwargs):
             arquivo_zip.close()
             arq = Path(tmpdirname + '/' + url.split('/')[-1].replace('.zip', '.csv'))
 
-            # Always overwrite the file
             shutil.move(str(arq), diretorio / arq.name)
+            logging.info(f"Arquivo {idx}/{total} extraído e movido: {arq.name}")
 
 task_extrair_informacao_cadastral = PythonOperator(
     task_id='extract_informacao_cadastral',
