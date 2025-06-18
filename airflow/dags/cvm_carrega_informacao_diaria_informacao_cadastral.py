@@ -125,7 +125,6 @@ def load_data_to_db():
                 CREATE TEMPORARY TABLE temp_informacao_diaria AS 
                 SELECT * FROM informacao_diaria WHERE 1=0
                 """))
-                conn.commit()
                 logger.info("Temporary table created")
 
             # Load data into temp table with batch processing
@@ -165,7 +164,6 @@ def load_data_to_db():
                     vl_quota = EXCLUDED.vl_quota,
                     vl_total = EXCLUDED.vl_total
                 """))
-                conn.commit()
             
             merge_time = time.time() - merge_start
             file_total_time = time.time() - file_start_time
@@ -229,7 +227,6 @@ def load_data_to_db():
     # Create a TEMP table like informacao_cadastral, then merge
     with engine.connect() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_INFORMACAO_CADASTRAL"))
-        conn.commit()
         logger.info("Temporary table dropped if existed")
 
     with engine.connect() as conn:
@@ -237,7 +234,6 @@ def load_data_to_db():
         CREATE TEMPORARY TABLE temp_informacao_cadastral AS 
         SELECT * FROM informacao_cadastral WHERE 1=0
         """))
-        conn.commit()
         logger.info("Temporary table created")
 
     # Load data into temp table with batch processing
@@ -326,7 +322,6 @@ def load_data_to_db():
                 TRIB_LPRAZO = VALUES(TRIB_LPRAZO),
                 VL_PATRIM_LIQ = VALUES(VL_PATRIM_LIQ)
         """))
-        conn.commit()
     
     merge_time = time.time() - merge_start
     cadastral_total_time = time.time() - cadastral_start
@@ -375,12 +370,10 @@ def load_data_to_db():
     # Create a temporary table for registro_fundo
     with engine.connect() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_FUNDO"))
-        conn.commit()
         logger.info("Temporary table dropped if existed")
 
     with engine.connect() as conn:
         conn.execute(text("CREATE TEMPORARY TABLE temp_registro_fundo LIKE registro_fundo"))
-        conn.commit()
         logger.info("Temporary table created for registro_fundo")
 
     # Load data into temp table with batch processing
@@ -433,7 +426,6 @@ def load_data_to_db():
             CPF_CNPJ_GESTOR = VALUES(CPF_CNPJ_GESTOR),
             GESTOR = VALUES(GESTOR)
         """))
-        conn.commit()
     
     merge_time = time.time() - merge_start
     logger.info(f"Data merged from temporary table into registro_fundo in {merge_time:.2f}s")
@@ -474,12 +466,10 @@ def load_data_to_db():
     # Create a temporary table for registro_classe
     with engine.connect() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_CLASSE"))
-        conn.commit()
         logger.info("Temporary table dropped if existed for registro_classe")
 
     with engine.connect() as conn:
         conn.execute(text("CREATE TEMPORARY TABLE temp_registro_classe LIKE registro_classe"))
-        conn.commit()
         logger.info("Temporary table created for registro_classe")
 
     # Load data into temp table with batch processing
@@ -547,7 +537,6 @@ def load_data_to_db():
             CNPJ_CONTROLADOR = VALUES(CNPJ_CONTROLADOR),
             CONTROLADOR = VALUES(CONTROLADOR)
         """))
-        conn.commit()
     
     merge_time = time.time() - merge_start
     logger.info(f"Data merged from temporary table into registro_classe in {merge_time:.2f}s")
@@ -570,12 +559,10 @@ def load_data_to_db():
     # Create a temporary table for registro_subclasse
     with engine.connect() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_SUBCLASSE"))
-        conn.commit()
         logger.info("Temporary table dropped if existed for registro_subclasse")
 
     with engine.connect() as conn:
         conn.execute(text("CREATE TEMPORARY TABLE temp_registro_subclasse LIKE registro_subclasse"))
-        conn.commit()
         logger.info("Temporary table created for registro_subclasse")
 
     # Load data into temp table with batch processing
@@ -620,7 +607,6 @@ def load_data_to_db():
             EXCLUSIVO = VALUES(EXCLUSIVO),
             PUBLICO_ALVO = VALUES(PUBLICO_ALVO)
         """))
-        conn.commit()
     
     merge_time = time.time() - merge_start
     registro_total_time = time.time() - registro_start
