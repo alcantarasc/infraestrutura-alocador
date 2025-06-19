@@ -603,7 +603,7 @@ ON CONFLICT (id_registro_classe) DO UPDATE SET
                 t.exclusivo, t.publico_alvo
             FROM temp_registro_subclasse t
             INNER JOIN registro_classe c ON t.id_registro_classe = c.id_registro_classe
-            ON CONFLICT (id_registro_classe, id_subclasse) DO UPDATE SET
+            ON CONFLICT (id_subclasse) DO UPDATE SET
                 codigo_cvm = EXCLUDED.codigo_cvm,
                 data_constituicao = EXCLUDED.data_constituicao,
                 data_inicio = EXCLUDED.data_inicio,
