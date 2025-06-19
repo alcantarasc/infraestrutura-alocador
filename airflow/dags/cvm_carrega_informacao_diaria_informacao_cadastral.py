@@ -405,36 +405,36 @@ def load_data_to_db():
         merge_start = time.time()
 
         conn.execute(text("""
-            INSERT INTO registro_fundo (
-                ID_REGISTRO_FUNDO, CNPJ_FUNDO, CODIGO_CVM, DATA_REGISTRO, DATA_CONSTITUICAO,
-                TIPO_FUNDO, DENOMINACAO_SOCIAL, DATA_CANCELAMENTO, SITUACAO, DATA_INICIO_SITUACAO,
-                DATA_ADAPTACAO_RCVM175, DATA_INICIO_EXERCICIO_SOCIAL, DATA_FIM_EXERCICIO_SOCIAL,
-                PATRIMONIO_LIQUIDO, DATA_PATRIMONIO_LIQUIDO, DIRETOR, CNPJ_ADMINISTRADOR,
-                ADMINISTRADOR, TIPO_PESSOA_GESTOR, CPF_CNPJ_GESTOR, GESTOR
-            )
-            SELECT *
-            FROM temp_registro_fundo
-            ON DUPLICATE KEY UPDATE
-                CNPJ_FUNDO = VALUES(CNPJ_FUNDO),
-                CODIGO_CVM = VALUES(CODIGO_CVM),
-                DATA_REGISTRO = VALUES(DATA_REGISTRO),
-                DATA_CONSTITUICAO = VALUES(DATA_CONSTITUICAO),
-                TIPO_FUNDO = VALUES(TIPO_FUNDO),
-                DENOMINACAO_SOCIAL = VALUES(DENOMINACAO_SOCIAL),
-                DATA_CANCELAMENTO = VALUES(DATA_CANCELAMENTO),
-                SITUACAO = VALUES(SITUACAO),
-                DATA_INICIO_SITUACAO = VALUES(DATA_INICIO_SITUACAO),
-                DATA_ADAPTACAO_RCVM175 = VALUES(DATA_ADAPTACAO_RCVM175),
-                DATA_INICIO_EXERCICIO_SOCIAL = VALUES(DATA_INICIO_EXERCICIO_SOCIAL),
-                DATA_FIM_EXERCICIO_SOCIAL = VALUES(DATA_FIM_EXERCICIO_SOCIAL),
-                PATRIMONIO_LIQUIDO = VALUES(PATRIMONIO_LIQUIDO),
-                DATA_PATRIMONIO_LIQUIDO = VALUES(DATA_PATRIMONIO_LIQUIDO),
-                DIRETOR = VALUES(DIRETOR),
-                CNPJ_ADMINISTRADOR = VALUES(CNPJ_ADMINISTRADOR),
-                ADMINISTRADOR = VALUES(ADMINISTRADOR),
-                TIPO_PESSOA_GESTOR = VALUES(TIPO_PESSOA_GESTOR),
-                CPF_CNPJ_GESTOR = VALUES(CPF_CNPJ_GESTOR),
-                GESTOR = VALUES(GESTOR)
+                INSERT INTO registro_fundo (
+        id_registro_fundo, cnpj_fundo, codigo_cvm, data_registro, data_constituicao,
+        tipo_fundo, denominacao_social, data_cancelamento, situacao, data_inicio_situacao,
+        data_adaptacao_rcvm175, data_inicio_exercicio_social, data_fim_exercicio_social,
+        patrimonio_liquido, data_patrimonio_liquido, diretor, cnpj_administrador,
+        administrador, tipo_pessoa_gestor, cpf_cnpj_gestor, gestor
+    )
+    SELECT *
+    FROM temp_registro_fundo
+    ON CONFLICT (id_registro_fundo) DO UPDATE SET
+        cnpj_fundo = EXCLUDED.cnpj_fundo,
+        codigo_cvm = EXCLUDED.codigo_cvm,
+        data_registro = EXCLUDED.data_registro,
+        data_constituicao = EXCLUDED.data_constituicao,
+        tipo_fundo = EXCLUDED.tipo_fundo,
+        denominacao_social = EXCLUDED.denominacao_social,
+        data_cancelamento = EXCLUDED.data_cancelamento,
+        situacao = EXCLUDED.situacao,
+        data_inicio_situacao = EXCLUDED.data_inicio_situacao,
+        data_adaptacao_rcvm175 = EXCLUDED.data_adaptacao_rcvm175,
+        data_inicio_exercicio_social = EXCLUDED.data_inicio_exercicio_social,
+        data_fim_exercicio_social = EXCLUDED.data_fim_exercicio_social,
+        patrimonio_liquido = EXCLUDED.patrimonio_liquido,
+        data_patrimonio_liquido = EXCLUDED.data_patrimonio_liquido,
+        diretor = EXCLUDED.diretor,
+        cnpj_administrador = EXCLUDED.cnpj_administrador,
+        administrador = EXCLUDED.administrador,
+        tipo_pessoa_gestor = EXCLUDED.tipo_pessoa_gestor,
+        cpf_cnpj_gestor = EXCLUDED.cpf_cnpj_gestor,
+        gestor = EXCLUDED.gestor
             """))
 
         merge_time = time.time() - merge_start
