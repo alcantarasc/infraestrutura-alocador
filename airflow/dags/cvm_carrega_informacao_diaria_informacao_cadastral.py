@@ -441,7 +441,7 @@ def load_data_to_db():
         logger.info(f"Data merged from temporary table into registro_fundo in {merge_time:.2f}s")
 
     # Now load registro_classe, but only for existing ID_REGISTRO_FUNDO values
-    df_registro_classe = pd.read_csv(registro_classe, delimiter=';', encoding='latin-1')
+    df_registro_classe = pd.read_csv(registro_classe, delimiter=';', encoding='latin-1', on_bad_lines='skip', engine='python')
 
     df_registro_classe.rename(columns={
         'ID_Registro_Classe': 'ID_REGISTRO_CLASSE',
