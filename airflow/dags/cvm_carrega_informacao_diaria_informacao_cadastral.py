@@ -578,54 +578,41 @@ ON CONFLICT (id_registro_classe) DO UPDATE SET
     df_registro_subclasse['DENOMINACAO_SOCIAL'] = df_registro_subclasse['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(100,))
     df_registro_subclasse.columns = df_registro_subclasse.columns.str.lower()
     with engine.begin() as conn:
+        # Create temp table
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_SUBCLASSE"))
-        logger.info("Temporary table dropped if existed for registro_subclasse")
-        conn.execute(text("CREATE TEMPORARY TABLE temp_registro_subclasse AS SELECT * FROM registro_subclasse WHERE 1=0;"))
-        logger.info("Temporary table created for registro_subclasse")
+        conn.execute(
+            text("CREATE TEMPORARY TABLE temp_registro_subclasse AS SELECT * FROM registro_subclasse WHERE 1=0;"))
 
-        # Load data into temp table with batch processing
+        # Load data into temp table
         batch_size = 5000
         total_rows = len(df_registro_subclasse)
         batches = [df_registro_subclasse[i:i + batch_size] for i in range(0, total_rows, batch_size)]
-
-        logger.info(f"Loading {total_rows} rows in {len(batches)} batches of {batch_size}")
-
-        for i, batch in enumerate(batches):
-            batch_start = time.time()
+        for batch in batches:
             batch.to_sql('temp_registro_subclasse', con=conn, if_exists='append', index=False, method='multi')
-            batch_time = time.time() - batch_start
-            logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
-
-        logger.info("Data loaded into temporary table for registro_subclasse")
 
         # Merge data from temp table to main table
-        merge_start = time.time()
-        with engine.begin() as conn:
-            with engine.begin() as conn:
-                conn.execute(text("""
-                    INSERT INTO registro_subclasse (
-                        id_registro_classe, id_subclasse, codigo_cvm, data_constituicao,
-                        data_inicio, denominacao_social, situacao, forma_condominio,
-                        exclusivo, publico_alvo
-                    )
-                    SELECT
-                        t.id_registro_classe, t.id_subclasse, t.codigo_cvm, t.data_constituicao,
-                        t.data_inicio, t.denominacao_social, t.situacao, t.forma_condominio,
-                        t.exclusivo, t.publico_alvo
-                    FROM temp_registro_subclasse t
-                    INNER JOIN registro_classe c ON t.id_registro_classe = c.id_registro_classe
-                    ON CONFLICT (id_registro_classe, id_subclasse) DO UPDATE SET
-                        codigo_cvm = EXCLUDED.codigo_cvm,
-                        data_constituicao = EXCLUDED.data_constituicao,
-                        data_inicio = EXCLUDED.data_inicio,
-                        denominacao_social = EXCLUDED.denominacao_social,
-                        situacao = EXCLUDED.situacao,
-                        forma_condominio = EXCLUDED.forma_condominio,
-                        exclusivo = EXCLUDED.exclusivo,
-                        publico_alvo = EXCLUDED.publico_alvo
-                """))
-
-            merge_time = time.time() - merge_start
+        conn.execute(text("""
+            INSERT INTO registro_subclasse (
+                id_registro_classe, id_subclasse, codigo_cvm, data_constituicao,
+                data_inicio, denominacao_social, situacao, forma_condominio,
+                exclusivo, publico_alvo
+            )
+            SELECT
+                t.id_registro_classe, t.id_subclasse, t.codigo_cvm, t.data_constituicao,
+                t.data_inicio, t.denominacao_social, t.situacao, t.forma_condominio,
+                t.exclusivo, t.publico_alvo
+            FROM temp_registro_subclasse t
+            INNER JOIN registro_classe c ON t.id_registro_classe = c.id_registro_classe
+            ON CONFLICT (id_registro_classe, id_subclasse) DO UPDATE SET
+                codigo_cvm = EXCLUDED.codigo_cvm,
+                data_constituicao = EXCLUDED.data_constituicao,
+                data_inicio = EXCLUDED.data_inicio,
+                denominacao_social = EXCLUDED.denominacao_social,
+                situacao = EXCLUDED.situacao,
+                forma_condominio = EXCLUDED.forma_condominio,
+                exclusivo = EXCLUDED.exclusivo,
+                publico_alvo = EXCLUDED.publico_alvo
+        """))
         registro_total_time = time.time() - registro_start
         logger.info(
             f"Data merged from temporary table into registro_subclasse in {merge_time:.2f}s (total registro time: {registro_total_time:.2f}s)")
