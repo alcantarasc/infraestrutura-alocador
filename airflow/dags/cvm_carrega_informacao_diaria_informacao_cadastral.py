@@ -62,7 +62,7 @@ def load_data_to_db():
         logger.error("No file found for informacao_diaria")
         raise FileNotFoundError('Não foi encontrado arquivo para informação diária')
 
-    # mantem apenas data 
+    arquivos_no_diretorio_diaria = []
     for arquivo in arquivos_no_diretorio_diaria:
         file_start_time = time.time()
         try:
@@ -228,36 +228,29 @@ def load_data_to_db():
         conn.execute(text("DROP TABLE IF EXISTS TEMP_INFORMACAO_CADASTRAL"))
         logger.info("Temporary table dropped if existed")
 
-    with engine.begin() as conn:
         conn.execute(text("""
         CREATE TEMPORARY TABLE temp_informacao_cadastral AS 
         SELECT * FROM informacao_cadastral WHERE 1=0
         """))
         logger.info("Temporary table created")
 
-    # Load data into temp table with batch processing
-    batch_size = 5000
-    total_rows = len(df_cadastral)
-    batches = [df_cadastral[i:i + batch_size] for i in range(0, total_rows, batch_size)]
+        # Load data into temp table with batch processing
+        batch_size = 5000
+        total_rows = len(df_cadastral)
+        batches = [df_cadastral[i:i + batch_size] for i in range(0, total_rows, batch_size)]
     
-    logger.info(f"Loading {total_rows} rows in {len(batches)} batches of {batch_size}")
+        logger.info(f"Loading {total_rows} rows in {len(batches)} batches of {batch_size}")
     
-    for i, batch in enumerate(batches):
-        batch_start = time.time()
-        batch.to_sql('temp_informacao_cadastral', con=conn, if_exists='append', index=False, method='multi')
-        batch_time = time.time() - batch_start
-        logger.info(f"Batch {i+1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
+        for i, batch in enumerate(batches):
+            batch_start = time.time()
+            batch.to_sql('temp_informacao_cadastral', con=conn, if_exists='append', index=False, method='multi')
+            batch_time = time.time() - batch_start
+            logger.info(f"Batch {i+1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
     
-    logger.info("Data loaded into temporary table for informacao_cadastral")
+        logger.info("Data loaded into temporary table for informacao_cadastral")
 
-    # -----------------------------------------------------
-    # FINAL MERGE STEP for informacao_cadastral
-    # -----------------------------------------------------
-    # We do an "INSERT ... SELECT ... ON DUPLICATE KEY UPDATE ..." 
-    # using all columns. Adjust if you need to skip or rename columns.
+        merge_start = time.time()
 
-    merge_start = time.time()
-    with engine.begin() as conn:
         conn.execute(text("""
             INSERT INTO informacao_cadastral (
                 ADMIN, AUDITOR, CD_CVM, CLASSE, CLASSE_ANBIMA, CNPJ_ADMIN,
@@ -322,9 +315,9 @@ def load_data_to_db():
                 VL_PATRIM_LIQ = VALUES(VL_PATRIM_LIQ)
         """))
     
-    merge_time = time.time() - merge_start
-    cadastral_total_time = time.time() - cadastral_start
-    logger.info(f"Data merged from temporary table into informacao_cadastral in {merge_time:.2f}s (total cadastral time: {cadastral_total_time:.2f}s)")
+        merge_time = time.time() - merge_start
+        cadastral_total_time = time.time() - cadastral_start
+        logger.info(f"Data merged from temporary table into informacao_cadastral in {merge_time:.2f}s (total cadastral time: {cadastral_total_time:.2f}s)")
 
     
     # Load registro_fundo
