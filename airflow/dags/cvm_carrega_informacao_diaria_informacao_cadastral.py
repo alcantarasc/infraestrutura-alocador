@@ -476,6 +476,16 @@ def load_data_to_db():
     # Create a temporary table for registro_classe
     df_registro_classe['DENOMINACAO_SOCIAL'] = df_registro_classe['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(100,))
     df_registro_classe.columns = df_registro_classe.columns.str.lower()
+
+    # Before loading into temp_registro_classe
+    df_registro_classe_before = len(df_registro_classe)
+    df_registro_classe = df_registro_classe.drop_duplicates(subset=['id_registro_classe'], keep='last')
+    df_registro_classe_after = len(df_registro_classe)
+    duplicates_dropped = df_registro_classe_before - df_registro_classe_after
+    logger.info(
+        f"Dropped {duplicates_dropped} duplicates from registro_classe (before: {df_registro_classe_before}, after: {df_registro_classe_after})"
+    )
+
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_CLASSE"))
         logger.info("Temporary table dropped if existed for registro_classe")
