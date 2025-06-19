@@ -376,6 +376,7 @@ def load_data_to_db():
     duplicates_dropped = df_registro_fundo_before - df_registro_fundo_after
     logger.info(
         f"Dropped {duplicates_dropped} duplicates from registro_fundo (before: {df_registro_fundo_before}, after: {df_registro_fundo_after})")
+    df_registro_fundo['DENOMINACAO_SOCIAL'] = df_registro_fundo['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(100,))
     df_registro_fundo.columns = df_registro_fundo.columns.str.lower()
     # Create a temporary table for registro_fundo
     with engine.begin() as conn:
@@ -473,6 +474,7 @@ def load_data_to_db():
     }, inplace=True)
 
     # Create a temporary table for registro_classe
+    df_registro_classe['DENOMINACAO_SOCIAL'] = df_registro_classe['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(100,))
     df_registro_classe.columns = df_registro_classe.columns.str.lower()
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_CLASSE"))
@@ -548,9 +550,8 @@ def load_data_to_db():
         merge_time = time.time() - merge_start
         logger.info(f"Data merged from temporary table into registro_classe in {merge_time:.2f}s")
 
-        df_registro_subclasse = pd.read_csv(registro_subclasse, delimiter=';', encoding='latin-1')
-
-        df_registro_subclasse.rename(columns={
+    df_registro_subclasse = pd.read_csv(registro_subclasse, delimiter=';', encoding='latin-1')
+    df_registro_subclasse.rename(columns={
         'ID_Registro_Classe': 'ID_REGISTRO_CLASSE',
         'ID_Subclasse': 'ID_SUBCLASSE',
         'Codigo_CVM': 'CODIGO_CVM',
@@ -562,8 +563,8 @@ def load_data_to_db():
         'Exclusivo': 'EXCLUSIVO',
         'Publico_Alvo': 'PUBLICO_ALVO'
     }, inplace=True)
-
-        # Create a temporary table for registro_subclasse
+    df_registro_subclasse['DENOMINACAO_SOCIAL'] = df_registro_subclasse['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(100,))
+    df_registro_subclasse.columns = df_registro_subclasse.columns.str.lower()
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_SUBCLASSE"))
         logger.info("Temporary table dropped if existed for registro_subclasse")
