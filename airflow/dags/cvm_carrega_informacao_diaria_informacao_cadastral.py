@@ -501,53 +501,52 @@ def load_data_to_db():
 
         conn.execute(text("""
         INSERT INTO registro_classe (
-            ID_REGISTRO_CLASSE, ID_REGISTRO_FUNDO, CNPJ_CLASSE, CODIGO_CVM, DATA_REGISTRO,
-            DATA_CONSTITUICAO, DATA_INICIO, TIPO_CLASSE, DENOMINACAO_SOCIAL, SITUACAO,
-            CLASSIFICACAO, IDENTIFICADOR_DESEMPENHO, CLASSE_COTAS, CLASSIFICACAO_ANBIMA,
-            TRIBUTACAO_LONGO_PRAZO, ENTIDADE_INVESTIMENTO, PERMITIDO_APLICACAO_CEM_POR_CENTO_EXTERIOR,
-            CLASSE_ESG, FORMA_CONDOMINIO, EXCLUSIVO, PATRIMONIO_LIQUIDO, DATA_PATRIMONIO_LIQUIDO, PUBLICO_ALVO, CNPJ_AUDITOR, AUDITOR,
-            CNPJ_CUSTODIANTE, CUSTODIANTE, CNPJ_CONTROLADOR, CONTROLADOR
-        )
-        SELECT 
-            t.ID_REGISTRO_CLASSE, t.ID_REGISTRO_FUNDO, t.CNPJ_CLASSE, t.CODIGO_CVM, t.DATA_REGISTRO,
-            t.DATA_CONSTITUICAO, t.DATA_INICIO, t.TIPO_CLASSE, t.DENOMINACAO_SOCIAL, t.SITUACAO,
-            t.CLASSIFICACAO, t.IDENTIFICADOR_DESEMPENHO, t.CLASSE_COTAS, t.CLASSIFICACAO_ANBIMA,
-            t.TRIBUTACAO_LONGO_PRAZO, t.ENTIDADE_INVESTIMENTO, t.PERMITIDO_APLICACAO_CEM_POR_CENTO_EXTERIOR,
-            t.CLASSE_ESG, t.FORMA_CONDOMINIO, t.EXCLUSIVO, T.PATRIMONIO_LIQUIDO, T.DATA_PATRIMONIO_LIQUIDO,
-             t.PUBLICO_ALVO, t.CNPJ_AUDITOR, t.AUDITOR,
-            t.CNPJ_CUSTODIANTE, t.CUSTODIANTE, t.CNPJ_CONTROLADOR, t.CONTROLADOR
-        FROM temp_registro_classe t
-        INNER JOIN registro_fundo f ON t.ID_REGISTRO_FUNDO = f.ID_REGISTRO_FUNDO
-        ON DUPLICATE KEY UPDATE
-            ID_REGISTRO_CLASSE = VALUES(ID_REGISTRO_CLASSE),
-            ID_REGISTRO_FUNDO = VALUES(ID_REGISTRO_FUNDO),
-            CNPJ_CLASSE = VALUES(CNPJ_CLASSE),
-            CODIGO_CVM = VALUES(CODIGO_CVM),
-            DATA_REGISTRO = VALUES(DATA_REGISTRO),
-            DATA_CONSTITUICAO = VALUES(DATA_CONSTITUICAO),
-            DATA_INICIO = VALUES(DATA_INICIO),
-            TIPO_CLASSE = VALUES(TIPO_CLASSE),
-            DENOMINACAO_SOCIAL = VALUES(DENOMINACAO_SOCIAL),
-            SITUACAO = VALUES(SITUACAO),
-            CLASSIFICACAO = VALUES(CLASSIFICACAO),
-            IDENTIFICADOR_DESEMPENHO = VALUES(IDENTIFICADOR_DESEMPENHO),
-            CLASSE_COTAS = VALUES(CLASSE_COTAS),
-            CLASSIFICACAO_ANBIMA = VALUES(CLASSIFICACAO_ANBIMA),
-            TRIBUTACAO_LONGO_PRAZO = VALUES(TRIBUTACAO_LONGO_PRAZO),
-            ENTIDADE_INVESTIMENTO = VALUES(ENTIDADE_INVESTIMENTO),
-            PERMITIDO_APLICACAO_CEM_POR_CENTO_EXTERIOR = VALUES(PERMITIDO_APLICACAO_CEM_POR_CENTO_EXTERIOR),
-            CLASSE_ESG = VALUES(CLASSE_ESG),
-            FORMA_CONDOMINIO = VALUES(FORMA_CONDOMINIO),
-            EXCLUSIVO = VALUES(EXCLUSIVO),
-            PATRIMONIO_LIQUIDO = VALUES(PATRIMONIO_LIQUIDO),
-            DATA_PATRIMONIO_LIQUIDO = VALUES(DATA_PATRIMONIO_LIQUIDO),
-            PUBLICO_ALVO = VALUES(PUBLICO_ALVO),
-            CNPJ_AUDITOR = VALUES(CNPJ_AUDITOR),
-            AUDITOR = VALUES(AUDITOR),
-            CNPJ_CUSTODIANTE = VALUES(CNPJ_CUSTODIANTE),
-            CUSTODIANTE = VALUES(CUSTODIANTE),
-            CNPJ_CONTROLADOR = VALUES(CNPJ_CONTROLADOR),
-            CONTROLADOR = VALUES(CONTROLADOR)
+    id_registro_classe, id_registro_fundo, cnpj_classe, codigo_cvm, data_registro,
+    data_constituicao, data_inicio, tipo_classe, denominacao_social, situacao,
+    classificacao, identificador_desempenho, classe_cotas, classificacao_anbima,
+    tributacao_longo_prazo, entidade_investimento, permitido_aplicacao_cem_por_cento_exterior,
+    classe_esg, forma_condominio, exclusivo, patrimonio_liquido, data_patrimonio_liquido, publico_alvo, cnpj_auditor, auditor,
+    cnpj_custodiante, custodiante, cnpj_controlador, controlador
+)
+SELECT
+    t.id_registro_classe, t.id_registro_fundo, t.cnpj_classe, t.codigo_cvm, t.data_registro,
+    t.data_constituicao, t.data_inicio, t.tipo_classe, t.denominacao_social, t.situacao,
+    t.classificacao, t.identificador_desempenho, t.classe_cotas, t.classificacao_anbima,
+    t.tributacao_longo_prazo, t.entidade_investimento, t.permitido_aplicacao_cem_por_cento_exterior,
+    t.classe_esg, t.forma_condominio, t.exclusivo, t.patrimonio_liquido, t.data_patrimonio_liquido,
+    t.publico_alvo, t.cnpj_auditor, t.auditor,
+    t.cnpj_custodiante, t.custodiante, t.cnpj_controlador, t.controlador
+FROM temp_registro_classe t
+INNER JOIN registro_fundo f ON t.id_registro_fundo = f.id_registro_fundo
+ON CONFLICT (id_registro_classe) DO UPDATE SET
+    id_registro_fundo = EXCLUDED.id_registro_fundo,
+    cnpj_classe = EXCLUDED.cnpj_classe,
+    codigo_cvm = EXCLUDED.codigo_cvm,
+    data_registro = EXCLUDED.data_registro,
+    data_constituicao = EXCLUDED.data_constituicao,
+    data_inicio = EXCLUDED.data_inicio,
+    tipo_classe = EXCLUDED.tipo_classe,
+    denominacao_social = EXCLUDED.denominacao_social,
+    situacao = EXCLUDED.situacao,
+    classificacao = EXCLUDED.classificacao,
+    identificador_desempenho = EXCLUDED.identificador_desempenho,
+    classe_cotas = EXCLUDED.classe_cotas,
+    classificacao_anbima = EXCLUDED.classificacao_anbima,
+    tributacao_longo_prazo = EXCLUDED.tributacao_longo_prazo,
+    entidade_investimento = EXCLUDED.entidade_investimento,
+    permitido_aplicacao_cem_por_cento_exterior = EXCLUDED.permitido_aplicacao_cem_por_cento_exterior,
+    classe_esg = EXCLUDED.classe_esg,
+    forma_condominio = EXCLUDED.forma_condominio,
+    exclusivo = EXCLUDED.exclusivo,
+    patrimonio_liquido = EXCLUDED.patrimonio_liquido,
+    data_patrimonio_liquido = EXCLUDED.data_patrimonio_liquido,
+    publico_alvo = EXCLUDED.publico_alvo,
+    cnpj_auditor = EXCLUDED.cnpj_auditor,
+    auditor = EXCLUDED.auditor,
+    cnpj_custodiante = EXCLUDED.cnpj_custodiante,
+    custodiante = EXCLUDED.custodiante,
+    cnpj_controlador = EXCLUDED.cnpj_controlador,
+    controlador = EXCLUDED.controlador
         """))
 
         merge_time = time.time() - merge_start
@@ -592,30 +591,29 @@ def load_data_to_db():
         # Merge data from temp table to main table
         merge_start = time.time()
         with engine.begin() as conn:
-            conn.execute(text("""
-        INSERT INTO registro_subclasse (
-            ID_REGISTRO_CLASSE, ID_SUBCLASSE, CODIGO_CVM, DATA_CONSTITUICAO,
-            DATA_INICIO, DENOMINACAO_SOCIAL, SITUACAO, FORMA_CONDOMINIO,
-            EXCLUSIVO, PUBLICO_ALVO
-        )
-        SELECT 
-            t.ID_REGISTRO_CLASSE, t.ID_SUBCLASSE, t.CODIGO_CVM, t.DATA_CONSTITUICAO,
-            t.DATA_INICIO, t.DENOMINACAO_SOCIAL, t.SITUACAO, t.FORMA_CONDOMINIO,
-            t.EXCLUSIVO, t.PUBLICO_ALVO
-        FROM temp_registro_subclasse t
-        INNER JOIN registro_classe c ON t.ID_REGISTRO_CLASSE = c.ID_REGISTRO_CLASSE
-        ON DUPLICATE KEY UPDATE
-            ID_REGISTRO_CLASSE = VALUES(ID_REGISTRO_CLASSE),
-            ID_SUBCLASSE = VALUES(ID_SUBCLASSE),
-            CODIGO_CVM = VALUES(CODIGO_CVM),
-            DATA_CONSTITUICAO = VALUES(DATA_CONSTITUICAO),
-            DATA_INICIO = VALUES(DATA_INICIO),
-            DENOMINACAO_SOCIAL = VALUES(DENOMINACAO_SOCIAL),
-            SITUACAO = VALUES(SITUACAO),
-            FORMA_CONDOMINIO = VALUES(FORMA_CONDOMINIO),
-            EXCLUSIVO = VALUES(EXCLUSIVO),
-            PUBLICO_ALVO = VALUES(PUBLICO_ALVO)
-        """))
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    INSERT INTO registro_subclasse (
+                        id_registro_classe, id_subclasse, codigo_cvm, data_constituicao,
+                        data_inicio, denominacao_social, situacao, forma_condominio,
+                        exclusivo, publico_alvo
+                    )
+                    SELECT
+                        t.id_registro_classe, t.id_subclasse, t.codigo_cvm, t.data_constituicao,
+                        t.data_inicio, t.denominacao_social, t.situacao, t.forma_condominio,
+                        t.exclusivo, t.publico_alvo
+                    FROM temp_registro_subclasse t
+                    INNER JOIN registro_classe c ON t.id_registro_classe = c.id_registro_classe
+                    ON CONFLICT (id_registro_classe, id_subclasse) DO UPDATE SET
+                        codigo_cvm = EXCLUDED.codigo_cvm,
+                        data_constituicao = EXCLUDED.data_constituicao,
+                        data_inicio = EXCLUDED.data_inicio,
+                        denominacao_social = EXCLUDED.denominacao_social,
+                        situacao = EXCLUDED.situacao,
+                        forma_condominio = EXCLUDED.forma_condominio,
+                        exclusivo = EXCLUDED.exclusivo,
+                        publico_alvo = EXCLUDED.publico_alvo
+                """))
 
             merge_time = time.time() - merge_start
         registro_total_time = time.time() - registro_start
