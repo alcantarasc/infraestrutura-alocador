@@ -376,7 +376,7 @@ def load_data_to_db():
     duplicates_dropped = df_registro_fundo_before - df_registro_fundo_after
     logger.info(
         f"Dropped {duplicates_dropped} duplicates from registro_fundo (before: {df_registro_fundo_before}, after: {df_registro_fundo_after})")
-
+    df_registro_fundo.columns = df_registro_fundo.columns.str.lower()
     # Create a temporary table for registro_fundo
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_FUNDO"))
@@ -477,7 +477,7 @@ def load_data_to_db():
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_CLASSE"))
         logger.info("Temporary table dropped if existed for registro_classe")
-        conn.execute(text("CREATE TEMPORARY TABLE temp_registro_classe LIKE registro_classe"))
+        conn.execute(text("CREATE TEMPORARY TABLE temp_registro_classe AS SELECT * FROM registro_classe WHERE 1=0;"))
         logger.info("Temporary table created for registro_classe")
 
         # Load data into temp table with batch processing
@@ -567,7 +567,7 @@ def load_data_to_db():
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_SUBCLASSE"))
         logger.info("Temporary table dropped if existed for registro_subclasse")
-        conn.execute(text("CREATE TEMPORARY TABLE temp_registro_subclasse LIKE registro_subclasse"))
+        conn.execute(text("CREATE TEMPORARY TABLE temp_registro_subclasse AS SELECT * FROM registro_subclasse WHERE 1=0;"))
         logger.info("Temporary table created for registro_subclasse")
 
         # Load data into temp table with batch processing
