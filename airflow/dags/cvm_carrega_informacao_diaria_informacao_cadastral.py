@@ -223,6 +223,8 @@ def load_data_to_db():
     # Concat the current + historical
     df_cadastral = pd.concat([df_cadastral, df_cadastral_historico], ignore_index=True)
 
+    df_cadastral.columns = df_cadastral.columns.str.lower()
+
     # Create a TEMP table like informacao_cadastral, then merge
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_INFORMACAO_CADASTRAL"))
