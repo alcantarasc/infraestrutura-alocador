@@ -382,7 +382,7 @@ def load_data_to_db():
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_FUNDO"))
         logger.info("Temporary table dropped if existed")
 
-        conn.execute(text("CREATE TEMPORARY TABLE temp_registro_fundo LIKE registro_fundo"))
+        conn.execute(text("CREATE TEMPORARY TABLE temp_registro_fundo AS SELECT * FROM registro_fundo WHERE 1=0;"))
         logger.info("Temporary table created for registro_fundo")
 
         # Load data into temp table with batch processing
@@ -402,8 +402,8 @@ def load_data_to_db():
 
         # Merge data from temp table to main table
         merge_start = time.time()
-        with engine.begin() as conn:
-            conn.execute(text("""
+
+        conn.execute(text("""
             INSERT INTO registro_fundo (
                 ID_REGISTRO_FUNDO, CNPJ_FUNDO, CODIGO_CVM, DATA_REGISTRO, DATA_CONSTITUICAO,
                 TIPO_FUNDO, DENOMINACAO_SOCIAL, DATA_CANCELAMENTO, SITUACAO, DATA_INICIO_SITUACAO,
@@ -473,6 +473,7 @@ def load_data_to_db():
     }, inplace=True)
 
     # Create a temporary table for registro_classe
+    df_registro_classe.columns = df_registro_classe.columns.str.lower()
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_REGISTRO_CLASSE"))
         logger.info("Temporary table dropped if existed for registro_classe")
@@ -495,8 +496,8 @@ def load_data_to_db():
         logger.info("Data loaded into temporary table for registro_classe")
 
         merge_start = time.time()
-        with engine.begin() as conn:
-            conn.execute(text("""
+
+        conn.execute(text("""
         INSERT INTO registro_classe (
             ID_REGISTRO_CLASSE, ID_REGISTRO_FUNDO, CNPJ_CLASSE, CODIGO_CVM, DATA_REGISTRO,
             DATA_CONSTITUICAO, DATA_INICIO, TIPO_CLASSE, DENOMINACAO_SOCIAL, SITUACAO,
