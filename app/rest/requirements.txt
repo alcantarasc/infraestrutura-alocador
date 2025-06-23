@@ -1,0 +1,5 @@
+firebase_admin
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
