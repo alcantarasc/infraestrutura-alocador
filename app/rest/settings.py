@@ -12,4 +12,4 @@ DATABASE_HOST = os.environ.get('DATABASE_HOST', 'localhost')
 DATABASE_PORT = os.environ.get('DATABASE_PORT', '5432')
 
 ## Firebase
-FIREBASE_CREDENTIAL_FILE = os.environ.get('FIREBASE_CREDENTIAL_FILE', 'firebase-credential.json')
+FIREBASE_CREDENTIAL_FILE = os.environ.get('FIREBASE_CREDENTIAL_FILE', "/app/rest/firebase-credential.json")
