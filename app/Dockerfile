@@ -1,7 +1,7 @@
 # Etapa 1: Build do front-end
 FROM node:18 AS frontend-build
 WORKDIR /app/front-end
-COPY front-end/package.json front-end/package-lock.json ./
+COPY front-end/package.json ./
 RUN npm install
 COPY front-end/ ./
 RUN npm run build
