@@ -19,7 +19,7 @@ function App() {
     user.getIdToken(true)
       .then((idToken) => {
         // Faça a solicitação para a API protegida usando o ID Token
-        return fetch('http://localhost:8008/api/v1/protected', {
+        return fetch('http://localhost:8000/api/v1/protected', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
