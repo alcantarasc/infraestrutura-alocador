@@ -24,7 +24,9 @@ COPY rest/requirements.txt /app/rest/requirements.txt
 
 # Instalações para rodar a API
 RUN apk add --no-cache python3 py3-pip supervisor
-RUN pip3 install --no-cache-dir -r /app/rest/requirements.txt
+RUN python3 -m venv /venv && \
+    . /venv/bin/activate && \
+    pip install --no-cache-dir -r /app/rest/requirements.txt
 
 # Copia configuração do Nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
