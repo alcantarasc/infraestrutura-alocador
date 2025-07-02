@@ -45,6 +45,17 @@ def _trata_cnpj(dataframe: dd.DataFrame) -> dd.DataFrame:
     return dataframe
 
 
+def fix_invalid_date(date_str):
+    """Replace invalid dates with a very old date (1900-01-01)"""
+    if pd.isna(date_str) or date_str == '' or str(date_str).strip() == '':
+        return pd.NaT  # Keep null/empty dates as null
+    try:
+        pd.to_datetime(date_str, errors='raise')
+        return date_str  # Keep valid dates as they are
+    except (ValueError, TypeError):
+        return '1900-01-01'  # Replace invalid dates with very old date
+
+
 def load_data_to_db():
     start_time = time.time()
     logger.info("Starting data load process")
@@ -202,6 +213,19 @@ def load_data_to_db():
     df_cadastral['DENOM_SOCIAL'] = df_cadastral['DENOM_SOCIAL'].apply(truncate_value, args=(100,))
     df_cadastral['INF_TAXA_PERFM'] = df_cadastral['INF_TAXA_PERFM'].apply(truncate_value, args=(400,))
 
+    # Fix invalid dates by replacing them with a very old date
+    date_columns = ['DT_CANCEL', 'DT_CONST', 'DT_FIM_EXERC', 'DT_INI_ATIV', 'DT_INI_CLASSE', 
+                   'DT_INI_EXERC', 'DT_INI_SIT', 'DT_PATRIM_LIQ', 'DT_REG']
+    
+    for col in date_columns:
+        if col in df_cadastral.columns:
+            invalid_dates_mask = ~df_cadastral[col].apply(lambda x: pd.isna(x) or x == '' or str(x).strip() == '' or 
+                                                         pd.to_datetime(x, errors='coerce') is not pd.NaT)
+            invalid_count = (~invalid_dates_mask).sum()
+            if invalid_count > 0:
+                logger.info(f"Found {invalid_count} invalid dates in column {col}, replacing with '1900-01-01'")
+                df_cadastral[col] = df_cadastral[col].apply(fix_invalid_date)
+
     df_cadastral_before = len(df_cadastral)
     df_cadastral = df_cadastral.drop_duplicates(subset=['CNPJ_FUNDO'], keep='first')
     df_cadastral_after = len(df_cadastral)
@@ -215,6 +239,16 @@ def load_data_to_db():
     df_cadastral_historico['DENOM_SOCIAL'] = df_cadastral_historico['DENOM_SOCIAL'].apply(truncate_value, args=(100,))
     df_cadastral_historico['CNPJ_FUNDO'] = df_cadastral_historico['CNPJ_FUNDO'].apply(remove_formatacao_cnpj,
                                                                                       'CNPJ_FUNDO')
+
+    # Fix invalid dates in historical data as well
+    for col in date_columns:
+        if col in df_cadastral_historico.columns:
+            invalid_dates_mask = ~df_cadastral_historico[col].apply(lambda x: pd.isna(x) or x == '' or str(x).strip() == '' or 
+                                                                   pd.to_datetime(x, errors='coerce') is not pd.NaT)
+            invalid_count = (~invalid_dates_mask).sum()
+            if invalid_count > 0:
+                logger.info(f"Found {invalid_count} invalid dates in historical column {col}, replacing with '1900-01-01'")
+                df_cadastral_historico[col] = df_cadastral_historico[col].apply(fix_invalid_date)
 
     # Insert CNPJ_FUNDO that are not in df_cadastral
     cnpj_fundos = df_cadastral['CNPJ_FUNDO'].unique()
