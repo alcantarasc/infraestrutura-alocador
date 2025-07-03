@@ -1,13 +1,15 @@
 from airflow.sdk import Asset, DAG
 from datetime import datetime
 from airflow.operators.python import PythonOperator
+import logging
+
 
 cvm_asset = Asset(
     "cvm"
 )
 
 def cvm_etl():
-    print("ETL para o CVM")
+    logging.info("ETL para o CVM")
 
 
 with DAG(

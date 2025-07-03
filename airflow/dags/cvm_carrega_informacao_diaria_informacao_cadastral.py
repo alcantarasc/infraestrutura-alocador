@@ -38,6 +38,13 @@ def truncate_value(value, max_length):
     return value
 
 
+def truncate_char_field(value, max_length=1):
+    """Truncate the value to exactly max_length characters for CHAR fields"""
+    if pd.isna(value) or value == '' or str(value).strip() == '':
+        return None
+    return str(value).strip()[:max_length]
+
+
 def _trata_cnpj(dataframe: dd.DataFrame) -> dd.DataFrame:
     colunas_cnpj = [coluna for coluna in dataframe.columns if 'CNPJ' in coluna]
     for coluna in colunas_cnpj:
@@ -212,6 +219,13 @@ def load_data_to_db():
                                                                               'CNPJ_CONTROLADOR')
     df_cadastral['DENOM_SOCIAL'] = df_cadastral['DENOM_SOCIAL'].apply(truncate_value, args=(100,))
     df_cadastral['INF_TAXA_PERFM'] = df_cadastral['INF_TAXA_PERFM'].apply(truncate_value, args=(400,))
+    
+    # Truncate CHAR(1) fields
+    df_cadastral['ENTID_INVEST'] = df_cadastral['ENTID_INVEST'].apply(truncate_char_field, args=(1,))
+    df_cadastral['FUNDO_COTAS'] = df_cadastral['FUNDO_COTAS'].apply(truncate_char_field, args=(1,))
+    df_cadastral['FUNDO_EXCLUSIVO'] = df_cadastral['FUNDO_EXCLUSIVO'].apply(truncate_char_field, args=(1,))
+    df_cadastral['INVEST_CEMPR_EXTER'] = df_cadastral['INVEST_CEMPR_EXTER'].apply(truncate_char_field, args=(1,))
+    df_cadastral['PF_PJ_GESTOR'] = df_cadastral['PF_PJ_GESTOR'].apply(truncate_char_field, args=(2,))
 
     # Fix invalid dates by replacing them with a very old date
     date_columns = ['DT_CANCEL', 'DT_CONST', 'DT_FIM_EXERC', 'DT_INI_ATIV', 'DT_INI_CLASSE', 
@@ -239,6 +253,13 @@ def load_data_to_db():
     df_cadastral_historico['DENOM_SOCIAL'] = df_cadastral_historico['DENOM_SOCIAL'].apply(truncate_value, args=(100,))
     df_cadastral_historico['CNPJ_FUNDO'] = df_cadastral_historico['CNPJ_FUNDO'].apply(remove_formatacao_cnpj,
                                                                                       'CNPJ_FUNDO')
+    
+    # Truncate CHAR(1) fields in historical data too
+    df_cadastral_historico['ENTID_INVEST'] = df_cadastral_historico['ENTID_INVEST'].apply(truncate_char_field, args=(1,))
+    df_cadastral_historico['FUNDO_COTAS'] = df_cadastral_historico['FUNDO_COTAS'].apply(truncate_char_field, args=(1,))
+    df_cadastral_historico['FUNDO_EXCLUSIVO'] = df_cadastral_historico['FUNDO_EXCLUSIVO'].apply(truncate_char_field, args=(1,))
+    df_cadastral_historico['INVEST_CEMPR_EXTER'] = df_cadastral_historico['INVEST_CEMPR_EXTER'].apply(truncate_char_field, args=(1,))
+    df_cadastral_historico['PF_PJ_GESTOR'] = df_cadastral_historico['PF_PJ_GESTOR'].apply(truncate_char_field, args=(2,))
 
     # Fix invalid dates in historical data as well
     for col in date_columns:
