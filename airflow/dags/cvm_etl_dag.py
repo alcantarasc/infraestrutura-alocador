@@ -3,10 +3,7 @@ from datetime import datetime
 from airflow.operators.python import PythonOperator
 
 cvm_asset = Asset(
-    name="cvm",
-    description="Logica de processamento de dados do CVM",
-    owner="alocador",
-    tags=["cvm", "data-processing"]
+    "cvm"
 )
 
 def cvm_etl():
