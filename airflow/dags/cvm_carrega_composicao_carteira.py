@@ -69,20 +69,20 @@ def carrega_informacao_carteira():
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public' 
-            AND table_name LIKE 'COMPOSICAO_CARTEIRA_%'
+            AND table_name LIKE 'composicao_carteira_%'
         """))
         existing_tables = [row[0] for row in result.fetchall()]
         logger.info(f"Tabelas existentes: {existing_tables}")
     
     tabelas_para_limpar = [
-        "COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC",
-        "COMPOSICAO_CARTEIRA_FUNDOS",
-        "COMPOSICAO_CARTEIRA_SWAPS",
-        "COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS",
-        "COMPOSICAO_CARTEIRA_DEPOSITO_PRAZO_IF",
-        "COMPOSICAO_CARTEIRA_TITULO_PRIVADO",
-        "COMPOSICAO_CARTEIRA_INVESTIMENTO_EXTERIOR",
-        "COMPOSICAO_CARTEIRA_NAO_CODIFICADOS"
+        "composicao_carteira_titulo_publico_selic",
+        "composicao_carteira_fundos",
+        "composicao_carteira_swaps",
+        "composicao_carteira_demais_codificados",
+        "composicao_carteira_deposito_prazo_if",
+        "composicao_carteira_titulo_privado",
+        "composicao_carteira_investimento_exterior",
+        "composicao_carteira_demais_nao_codificados"
     ]
 
     logger.info("Limpando (TRUNCATE) tabelas existentes...")
@@ -114,14 +114,14 @@ def carrega_informacao_carteira():
 
     # Mapeia o tipo para a tabela correspondente
     tabela_destino = {
-        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PUBLICO_SELIC: 'COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC',
-        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.COTA_DE_FUNDO: 'COMPOSICAO_CARTEIRA_FUNDOS',
-        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.SWAP: 'COMPOSICAO_CARTEIRA_SWAPS',
-        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_CODIFICADOS: 'COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS',
-        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEPOSITO_A_PRAZO_OU_IF: 'COMPOSICAO_CARTEIRA_DEPOSITO_PRAZO_IF',
-        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PRIVADO: 'COMPOSICAO_CARTEIRA_TITULO_PRIVADO',
-        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.INVESTIMENTO_NO_EXTERIOR: 'COMPOSICAO_CARTEIRA_INVESTIMENTO_EXTERIOR',
-        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_NAO_CODIFICADOS: 'COMPOSICAO_CARTEIRA_NAO_CODIFICADOS'
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PUBLICO_SELIC: 'composicao_carteira_titulo_publico_selic',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.COTA_DE_FUNDO: 'composicao_carteira_fundos',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.SWAP: 'composicao_carteira_swaps',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_CODIFICADOS: 'composicao_carteira_demais_codificados',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEPOSITO_A_PRAZO_OU_IF: 'composicao_carteira_deposito_prazo_if',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PRIVADO: 'composicao_carteira_titulo_privado',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.INVESTIMENTO_NO_EXTERIOR: 'composicao_carteira_investimento_exterior',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_NAO_CODIFICADOS: 'composicao_carteira_demais_nao_codificados'
     }
 
     # Processa cada data
