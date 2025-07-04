@@ -62,6 +62,17 @@ def carrega_informacao_carteira():
     print(URI)
     engine = create_engine(URI, pool_pre_ping=True, pool_recycle=3600)
     
+    # Primeiro, vamos verificar se as tabelas existem
+    with engine.begin() as conn:
+        result = conn.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name LIKE 'COMPOSICAO_CARTEIRA_%'
+        """)
+        existing_tables = [row[0] for row in result]
+        logger.info(f"Tabelas existentes: {existing_tables}")
+    
     tabelas_para_limpar = [
         "COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC",
         "COMPOSICAO_CARTEIRA_FUNDOS",
@@ -76,8 +87,11 @@ def carrega_informacao_carteira():
     logger.info("Limpando (TRUNCATE) tabelas existentes...")
     with engine.begin() as conn:
         for tabela in tabelas_para_limpar:
-            logger.info(f"Truncando tabela: {tabela}")
-            conn.execute(f"TRUNCATE TABLE {tabela};")
+            if tabela in existing_tables:
+                logger.info(f"Truncando tabela: {tabela}")
+                conn.execute(f"TRUNCATE TABLE {tabela};")
+            else:
+                logger.warning(f"Tabela {tabela} não existe!")
 
     # Load informacao_carteira
     diretorio_carteira = ROOT_DIR / 'composicao-carteira'
@@ -139,6 +153,16 @@ def carrega_informacao_carteira():
                 
                 df_carteira = df_carteira.compute()
                 
+                # Vamos verificar se os dados estão sendo lidos corretamente
+                logger.info(f"DataFrame shape: {df_carteira.shape}")
+                logger.info(f"DataFrame columns: {list(df_carteira.columns)}")
+                logger.info(f"Primeiras 5 linhas: {df_carteira.head()}")
+                
+                # Verificar se a tabela existe antes de tentar inserir
+                if tabela_destino[tipo] not in existing_tables:
+                    logger.error(f"Tabela {tabela_destino[tipo]} não existe!")
+                    continue
+                
                 # Usa processamento em lotes como no arquivo que funciona
                 with engine.begin() as conn:
                     batch_size = 10000
@@ -148,8 +172,17 @@ def carrega_informacao_carteira():
                     logger.info(f"Loading {total_rows} rows in {len(batches)} batches of {batch_size}")
                     
                     for i, batch in enumerate(batches):
-                        batch.to_sql(tabela_destino[tipo], con=conn, if_exists='append', index=False, method='multi')
-                        logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) to {tabela_destino[tipo]}")
+                        try:
+                            batch.to_sql(tabela_destino[tipo], con=conn, if_exists='append', index=False, method='multi')
+                            logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) to {tabela_destino[tipo]}")
+                        except Exception as e:
+                            logger.error(f"Erro ao salvar batch {i + 1}: {e}")
+                            raise
+                    
+                    # Vamos verificar se os dados foram realmente salvos
+                    result = conn.execute(f"SELECT COUNT(*) FROM {tabela_destino[tipo]}")
+                    count = result.fetchone()[0]
+                    logger.info(f"Total de registros na tabela {tabela_destino[tipo]} após inserção: {count}")
                     
                     logger.info(f"Data loaded to {tabela_destino[tipo]} table from file: {arquivo.name}")
 
