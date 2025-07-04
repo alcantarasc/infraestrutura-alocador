@@ -49,7 +49,11 @@ def truncate_varchar_field(value, max_length):
     """Truncate the value if it exceeds the max_length for VARCHAR fields"""
     if pd.isna(value) or value == '' or str(value).strip() == '':
         return None
-    return str(value).strip()[:max_length]
+    value_str = str(value).strip()
+    if len(value_str) > max_length:
+        logger.warning(f"Truncating value '{value_str}' to {max_length} characters")
+        return value_str[:max_length]
+    return value_str
 
 
 def _trata_cnpj(dataframe: dd.DataFrame) -> dd.DataFrame:
@@ -236,7 +240,7 @@ def load_data_to_db():
         'PF_PJ_GESTOR': 2
     }
     
-    # Add VARCHAR field truncation
+    # Add VARCHAR field truncation with more specific logging
     varchar_fields_config = {
         'TP_FUNDO': 3,  # Based on the error, this field has VARCHAR(3)
         'CLASSE': 50,   # Adjust these values based on your actual schema
@@ -252,9 +256,18 @@ def load_data_to_db():
         else:
             logger.info(f"Column {field} not found in cadastral data, skipping truncation")
 
-    # Truncate VARCHAR fields
+    # Truncate VARCHAR fields with better error handling
     for field, max_length in varchar_fields_config.items():
         if field in df_cadastral.columns:
+            # Check for values that exceed the limit before truncating
+            long_values = df_cadastral[field].apply(lambda x: len(str(x).strip()) if pd.notna(x) and str(x).strip() != '' else 0) > max_length
+            if long_values.any():
+                count_long = long_values.sum()
+                logger.warning(f"Found {count_long} values in column {field} that exceed {max_length} characters")
+                # Show some examples
+                examples = df_cadastral[long_values][field].head(3).tolist()
+                logger.warning(f"Examples of long values in {field}: {examples}")
+            
             df_cadastral[field] = df_cadastral[field].apply(truncate_varchar_field, args=(max_length,))
             logger.info(f"Truncated column {field} to max length {max_length}")
         else:
@@ -313,9 +326,18 @@ def load_data_to_db():
         else:
             logger.info(f"Column {field} not found in historical data, skipping truncation")
 
-    # Truncate VARCHAR fields in historical data
+    # Truncate VARCHAR fields in historical data with better error handling
     for field, max_length in varchar_fields_config_historical.items():
         if field in df_cadastral_historico.columns:
+            # Check for values that exceed the limit before truncating
+            long_values = df_cadastral_historico[field].apply(lambda x: len(str(x).strip()) if pd.notna(x) and str(x).strip() != '' else 0) > max_length
+            if long_values.any():
+                count_long = long_values.sum()
+                logger.warning(f"Found {count_long} values in historical column {field} that exceed {max_length} characters")
+                # Show some examples
+                examples = df_cadastral_historico[long_values][field].head(3).tolist()
+                logger.warning(f"Examples of long values in historical {field}: {examples}")
+            
             df_cadastral_historico[field] = df_cadastral_historico[field].apply(truncate_varchar_field, args=(max_length,))
             logger.info(f"Truncated historical column {field} to max length {max_length}")
         else:
