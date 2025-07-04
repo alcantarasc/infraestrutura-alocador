@@ -255,12 +255,15 @@ def load_data_to_db():
                                                                                       'CNPJ_FUNDO')
     
     # Truncate CHAR(1) fields in historical data too
-    df_cadastral_historico['ENTID_INVEST'] = df_cadastral_historico['ENTID_INVEST'].apply(truncate_char_field, args=(1,))
-    df_cadastral_historico['FUNDO_COTAS'] = df_cadastral_historico['FUNDO_COTAS'].apply(truncate_char_field, args=(1,))
-    df_cadastral_historico['FUNDO_EXCLUSIVO'] = df_cadastral_historico['FUNDO_EXCLUSIVO'].apply(truncate_char_field, args=(1,))
-    df_cadastral_historico['INVEST_CEMPR_EXTER'] = df_cadastral_historico['INVEST_CEMPR_EXTER'].apply(truncate_char_field, args=(1,))
-    df_cadastral_historico['PF_PJ_GESTOR'] = df_cadastral_historico['PF_PJ_GESTOR'].apply(truncate_char_field, args=(2,))
-
+    try:
+        df_cadastral_historico['ENTID_INVEST'] = df_cadastral_historico['ENTID_INVEST'].apply(truncate_char_field, args=(1,))
+        df_cadastral_historico['FUNDO_COTAS'] = df_cadastral_historico['FUNDO_COTAS'].apply(truncate_char_field, args=(1,))
+        df_cadastral_historico['FUNDO_EXCLUSIVO'] = df_cadastral_historico['FUNDO_EXCLUSIVO'].apply(truncate_char_field, args=(1,))
+        df_cadastral_historico['INVEST_CEMPR_EXTER'] = df_cadastral_historico['INVEST_CEMPR_EXTER'].apply(truncate_char_field, args=(1,))
+        df_cadastral_historico['PF_PJ_GESTOR'] = df_cadastral_historico['PF_PJ_GESTOR'].apply(truncate_char_field, args=(2,))
+    except Exception as e:
+        logger.error(f"Error truncating CHAR fields in historical data: {e}")
+    
     # Fix invalid dates in historical data as well
     for col in date_columns:
         if col in df_cadastral_historico.columns:
