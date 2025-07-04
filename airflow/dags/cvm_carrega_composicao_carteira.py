@@ -10,6 +10,7 @@ from airflow.operators.python import PythonOperator
 from settings import ROOT_DIR
 from airflow.models import Variable
 import dask.dataframe as dd
+from sqlalchemy.sql import text
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -64,13 +65,13 @@ def carrega_informacao_carteira():
     
     # Primeiro, vamos verificar se as tabelas existem
     with engine.begin() as conn:
-        result = conn.execute("""
+        result = conn.execute(text("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public' 
             AND table_name LIKE 'COMPOSICAO_CARTEIRA_%'
-        """)
-        existing_tables = [row[0] for row in result]
+        """))
+        existing_tables = [row[0] for row in result.fetchall()]
         logger.info(f"Tabelas existentes: {existing_tables}")
     
     tabelas_para_limpar = [
@@ -89,7 +90,7 @@ def carrega_informacao_carteira():
         for tabela in tabelas_para_limpar:
             if tabela in existing_tables:
                 logger.info(f"Truncando tabela: {tabela}")
-                conn.execute(f"TRUNCATE TABLE {tabela};")
+                conn.execute(text(f"TRUNCATE TABLE {tabela};"))
             else:
                 logger.warning(f"Tabela {tabela} não existe!")
 
@@ -180,7 +181,7 @@ def carrega_informacao_carteira():
                             raise
                     
                     # Vamos verificar se os dados foram realmente salvos
-                    result = conn.execute(f"SELECT COUNT(*) FROM {tabela_destino[tipo]}")
+                    result = conn.execute(text(f"SELECT COUNT(*) FROM {tabela_destino[tipo]}"))
                     count = result.fetchone()[0]
                     logger.info(f"Total de registros na tabela {tabela_destino[tipo]} após inserção: {count}")
                     
