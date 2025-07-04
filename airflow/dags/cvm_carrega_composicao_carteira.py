@@ -82,7 +82,7 @@ def carrega_informacao_carteira():
         "composicao_carteira_deposito_prazo_if",
         "composicao_carteira_titulo_privado",
         "composicao_carteira_investimento_exterior",
-        "composicao_carteira_demais_nao_codificados"
+        "composicao_carteira_nao_codificados"
     ]
 
     logger.info("Limpando (TRUNCATE) tabelas existentes...")
@@ -121,7 +121,7 @@ def carrega_informacao_carteira():
         IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEPOSITO_A_PRAZO_OU_IF: 'composicao_carteira_deposito_prazo_if',
         IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PRIVADO: 'composicao_carteira_titulo_privado',
         IdentificacaoPlanilhaRelatorioComposicaoAplicacao.INVESTIMENTO_NO_EXTERIOR: 'composicao_carteira_investimento_exterior',
-        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_NAO_CODIFICADOS: 'composicao_carteira_demais_nao_codificados'
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_NAO_CODIFICADOS: 'composicao_carteira_nao_codificados'
     }
 
     # Processa cada data
