@@ -86,118 +86,67 @@ def carrega_informacao_carteira():
     # filter only files that begins with cda_fi_BLC
     arquivos_no_diretorio_carteira = list(filter(lambda x: x.name.startswith('cda_fi_BLC'), arquivos_no_diretorio_carteira))
 
-    # ordena os arquivos por data cda_fi_BLC_1_202506.csv
-    arquivos_no_diretorio_carteira.sort(key=lambda x: datetime.strptime(x.name.split('_')[4][:6], '%Y%m'), reverse=True)
+    # Agrupa arquivos por data
+    arquivos_por_data = {}
+    for arquivo in arquivos_no_diretorio_carteira:
+        data_arquivo = arquivo.name.split('_')[4][:6]  # Extrai YYYYMM
+        if data_arquivo not in arquivos_por_data:
+            arquivos_por_data[data_arquivo] = []
+        arquivos_por_data[data_arquivo].append(arquivo)
 
-    for tipo in IdentificacaoPlanilhaRelatorioComposicaoAplicacao:
-        arquivos_do_tipo = list(filter(lambda x: x.name.split('_')[3] == tipo.value, arquivos_no_diretorio_carteira))
-        if not arquivos_do_tipo:
-            logger.error(f"No file found for {tipo.name}")
-            raise FileNotFoundError(f'Não foi encontrado arquivo para {tipo.name}')
+    # Ordena as datas em ordem decrescente
+    datas_ordenadas = sorted(arquivos_por_data.keys(), reverse=True)
+
+    # Mapeia o tipo para a tabela correspondente
+    tabela_destino = {
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PUBLICO_SELIC: 'COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.COTA_DE_FUNDO: 'COMPOSICAO_CARTEIRA_FUNDOS',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.SWAP: 'COMPOSICAO_CARTEIRA_SWAPS',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_CODIFICADOS: 'COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEPOSITO_A_PRAZO_OU_IF: 'COMPOSICAO_CARTEIRA_DEPOSITO_PRAZO_IF',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PRIVADO: 'COMPOSICAO_CARTEIRA_TITULO_PRIVADO',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.INVESTIMENTO_NO_EXTERIOR: 'COMPOSICAO_CARTEIRA_INVESTIMENTO_EXTERIOR',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_NAO_CODIFICADOS: 'COMPOSICAO_CARTEIRA_NAO_CODIFICADOS'
+    }
+
+    # Processa cada data
+    for data in datas_ordenadas:
+        logger.info(f"Processando arquivos da data: {data}")
+        arquivos_da_data = arquivos_por_data[data]
         
-        if tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PUBLICO_SELIC:
+        # Processa todos os tipos da mesma data
+        for tipo in IdentificacaoPlanilhaRelatorioComposicaoAplicacao:
+            arquivos_do_tipo = list(filter(lambda x: x.name.split('_')[3] == tipo.value, arquivos_da_data))
+            if not arquivos_do_tipo:
+                logger.warning(f"No file found for {tipo.name} in date {data}")
+                continue
+            
             for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
+                logger.info(f"Loading {tipo.name} data from file: {arquivo.name}")
                 df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
-                # if TP_FUNDO rename to TP_FUNDO_CLASSE
+                
+                # Renomeia TP_FUNDO se existir
                 if 'TP_FUNDO' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
+                
+                # Trata CNPJs
                 df_carteira = _trata_cnpj(df_carteira)
                 df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.COTA_DE_FUNDO:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-
-                if 'CNPJ_FUNDO_COTA' in df_carteira.columns:
+                
+                # Renomeia CNPJ_FUNDO_COTA se existir (apenas para COTA_DE_FUNDO)
+                if tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.COTA_DE_FUNDO and 'CNPJ_FUNDO_COTA' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'CNPJ_FUNDO_COTA': 'CNPJ_FUNDO_CLASSE_COTA'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
+                
                 df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_FUNDOS', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.SWAP:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_SWAPS', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_CODIFICADOS:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEPOSITO_A_PRAZO_OU_IF:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_DEPOSITO_PRAZO_IF', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PRIVADO:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_TITULO_PRIVADO', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.INVESTIMENTO_NO_EXTERIOR:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_INVESTIMENTO_EXTERIOR', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_NAO_CODIFICADOS:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_NAO_CODIFICADOS', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
+                
+                # Usa uma conexão ativa para salvar no banco
+                with engine.begin() as conn:
+                    df_carteira.to_sql(tabela_destino[tipo], conn, if_exists='append', index=False)
+                    logger.info(f"Data loaded to {tabela_destino[tipo]} table from file: {arquivo.name}")
 
     if not arquivos_no_diretorio_carteira:
         logger.error("No file found for informacao_carteira")
-        raise FileNotFoundError('Não foi encontrado arquivo para informação de carteira')    
+        raise FileNotFoundError('Não foi encontrado arquivo para informação de carteira')
 
 dag = DAG(
     dag_id='load_informacao_carteira',
