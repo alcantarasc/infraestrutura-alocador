@@ -64,7 +64,7 @@ def create_tables():
         TAXA_ADM REAL,
         TAXA_PERFM REAL,
         TP_FUNDO VARCHAR(500),
-        TRIB_LPRAZO VARCHAR(3),
+        TRIB_LPRAZO VARCHAR(500),
         VL_PATRIM_LIQ NUMERIC(24, 2),
         PRIMARY KEY (CNPJ_FUNDO)
     );

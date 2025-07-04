@@ -322,6 +322,7 @@ def load_data_to_db():
 
     # truncate denom_social to 500 characters
     df_cadastral['denom_social'] = df_cadastral['denom_social'].apply(truncate_value, args=(500,))
+    df_cadastral['trib_lprazo'] = df_cadastral['trib_lprazo'].apply(truncate_value, args=(500,))
 
     # Create a TEMP table like informacao_cadastral, then merge
     with engine.begin() as conn:
