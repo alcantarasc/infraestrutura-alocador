@@ -45,6 +45,13 @@ def truncate_char_field(value, max_length=1):
     return str(value).strip()[:max_length]
 
 
+def truncate_varchar_field(value, max_length):
+    """Truncate the value if it exceeds the max_length for VARCHAR fields"""
+    if pd.isna(value) or value == '' or str(value).strip() == '':
+        return None
+    return str(value).strip()[:max_length]
+
+
 def _trata_cnpj(dataframe: dd.DataFrame) -> dd.DataFrame:
     colunas_cnpj = [coluna for coluna in dataframe.columns if 'CNPJ' in coluna]
     for coluna in colunas_cnpj:
@@ -229,9 +236,27 @@ def load_data_to_db():
         'PF_PJ_GESTOR': 2
     }
     
+    # Add VARCHAR field truncation
+    varchar_fields_config = {
+        'TP_FUNDO': 3,  # Based on the error, this field has VARCHAR(3)
+        'CLASSE': 50,   # Adjust these values based on your actual schema
+        'CLASSE_ANBIMA': 50,
+        'SIT': 20,
+        'PUBLICO_ALVO': 100,
+        'RENTAB_FUNDO': 50
+    }
+    
     for field, max_length in char_fields_config.items():
         if field in df_cadastral.columns:
             df_cadastral[field] = df_cadastral[field].apply(truncate_char_field, args=(max_length,))
+        else:
+            logger.info(f"Column {field} not found in cadastral data, skipping truncation")
+
+    # Truncate VARCHAR fields
+    for field, max_length in varchar_fields_config.items():
+        if field in df_cadastral.columns:
+            df_cadastral[field] = df_cadastral[field].apply(truncate_varchar_field, args=(max_length,))
+            logger.info(f"Truncated column {field} to max length {max_length}")
         else:
             logger.info(f"Column {field} not found in cadastral data, skipping truncation")
 
@@ -272,9 +297,27 @@ def load_data_to_db():
         'TRIB_LPRAZO': 3
     }
     
+    # Add VARCHAR field truncation for historical data
+    varchar_fields_config_historical = {
+        'TP_FUNDO': 3,
+        'CLASSE': 50,
+        'CLASSE_ANBIMA': 50,
+        'SIT': 20,
+        'PUBLICO_ALVO': 100,
+        'RENTAB_FUNDO': 50
+    }
+    
     for field, max_length in char_fields_config_historical.items():
         if field in df_cadastral_historico.columns:
             df_cadastral_historico[field] = df_cadastral_historico[field].apply(truncate_char_field, args=(max_length,))
+        else:
+            logger.info(f"Column {field} not found in historical data, skipping truncation")
+
+    # Truncate VARCHAR fields in historical data
+    for field, max_length in varchar_fields_config_historical.items():
+        if field in df_cadastral_historico.columns:
+            df_cadastral_historico[field] = df_cadastral_historico[field].apply(truncate_varchar_field, args=(max_length,))
+            logger.info(f"Truncated historical column {field} to max length {max_length}")
         else:
             logger.info(f"Column {field} not found in historical data, skipping truncation")
 
