@@ -320,6 +320,9 @@ def load_data_to_db():
 
     df_cadastral.columns = df_cadastral.columns.str.lower()
 
+    # truncate denom_social to 500 characters
+    df_cadastral['denom_social'] = df_cadastral['denom_social'].apply(truncate_value, args=(500,))
+
     # Create a TEMP table like informacao_cadastral, then merge
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS TEMP_INFORMACAO_CADASTRAL"))
@@ -345,26 +348,8 @@ def load_data_to_db():
                 batch_time = time.time() - batch_start
                 logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
             except Exception as e:
-                logger.warning(f"Batch {i + 1} failed with error: {e}")
-                logger.warning(f"Processing batch {i + 1} row by row...")
-                
-                # Process batch row by row
-                successful_rows = 0
-                failed_rows = 0
-                
-                for idx, row in batch.iterrows():
-                    try:
-                        # Convert row to DataFrame for single row insertion
-                        row_df = pd.DataFrame([row])
-                        row_df.to_sql('temp_informacao_cadastral', con=conn, if_exists='append', index=False, method='multi')
-                        successful_rows += 1
-                    except Exception as row_error:
-                        failed_rows += 1
-                        logger.error(f"Row {idx} failed: {row_error}")
-                        logger.error(f"Row data: {row.to_dict()}")
-                
-                batch_time = time.time() - batch_start
-                logger.info(f"Batch {i + 1}/{len(batches)} processed row by row: {successful_rows} successful, {failed_rows} failed in {batch_time:.2f}s")
+                logger.error(f"Error ao carregar informacao_cadastral: {e[:500]}")
+                raise  # Re-raise the exception to ensure the DAG task fails
 
         logger.info("Data loaded into temporary table for informacao_cadastral")
 
