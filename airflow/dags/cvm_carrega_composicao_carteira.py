@@ -10,7 +10,6 @@ from airflow.operators.python import PythonOperator
 from settings import ROOT_DIR
 from airflow.models import Variable
 import dask.dataframe as dd
-import pandas as pd
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,57 +56,6 @@ class IdentificacaoPlanilhaRelatorioComposicaoAplicacao(Enum):
 
 dask_dtype = {'DT_CONFID_APLIC': 'object', 'TP_NEGOC': 'object', 'DT_FIM_VIGENCIA': 'object','CD_ATIVO_BV_MERC': 'object', 'AG_RISCO': 'object', 'DT_RISCO': 'object', 'GRAU_RISCO': 'object', 'CNPJ_INSTITUICAO_FINANC_COOBR': 'object', 'DS_ATIVO_EXTERIOR': 'object', 'DT_VENC': 'object', 'EMISSOR_LIGADO': 'object', 'CD_BV_MERC': 'object', 'CPF_CNPJ_EMISSOR': 'object', 'EMISSOR': 'object', 'PF_PJ_EMISSOR': 'object'}
 
-def read_csv_safely(file_path, **kwargs):
-    """
-    Safely read CSV file with multiple fallback strategies
-    """
-    strategies = [
-        # Strategy 1: Default with error handling
-        {
-            'delimiter': ';',
-            'encoding': 'latin-1',
-            'quoting': 3,  # QUOTE_NONE
-            'on_bad_lines': 'skip',
-            'error_bad_lines': False
-        },
-        # Strategy 2: With minimal quoting
-        {
-            'delimiter': ';',
-            'encoding': 'latin-1',
-            'quoting': 0,  # QUOTE_MINIMAL
-            'escapechar': '\\',
-            'on_bad_lines': 'skip'
-        },
-        # Strategy 3: With different encoding
-        {
-            'delimiter': ';',
-            'encoding': 'utf-8',
-            'quoting': 3,
-            'on_bad_lines': 'skip',
-            'error_bad_lines': False
-        },
-        # Strategy 4: Manual parsing as last resort
-        {
-            'delimiter': ';',
-            'encoding': 'latin-1',
-            'engine': 'python',
-            'quoting': 3,
-            'on_bad_lines': 'skip'
-        }
-    ]
-    
-    for i, strategy in enumerate(strategies):
-        try:
-            logger.info(f"Trying strategy {i+1} for file {file_path.name}")
-            strategy.update(kwargs)  # Override with any additional kwargs
-            return dd.read_csv(file_path, **strategy)
-        except Exception as e:
-            logger.warning(f"Strategy {i+1} failed for {file_path.name}: {str(e)}")
-            if i == len(strategies) - 1:  # Last strategy
-                raise e
-    
-    raise Exception(f"All strategies failed for file {file_path.name}")
-
 def carrega_informacao_carteira():
     logger.info("Starting data load process")
     URI = f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm'
@@ -147,40 +95,20 @@ def carrega_informacao_carteira():
         if tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PUBLICO_SELIC:
             for arquivo in arquivos_do_tipo:
                 logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                try:
-                    df_carteira = dd.read_csv(
-                        arquivo, 
-                        delimiter=';', 
-                        encoding='latin-1', 
-                        dtype=dask_dtype,
-                        quoting=3,  # QUOTE_NONE
-                        on_bad_lines='skip',
-                        error_bad_lines=False
-                    )
-                    # if TP_FUNDO rename to TP_FUNDO_CLASSE
-                    if 'TP_FUNDO' in df_carteira.columns:
-                        df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                    df_carteira = _trata_cnpj(df_carteira)
-                    df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                    df_carteira = df_carteira.compute()
-                    df_carteira.to_sql('COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC', engine, if_exists='append', index=False)
-                    logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-                except Exception as e:
-                    logger.error(f"Failed to process file {arquivo.name}: {str(e)}")
-                    continue
+                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
+                # if TP_FUNDO rename to TP_FUNDO_CLASSE
+                if 'TP_FUNDO' in df_carteira.columns:
+                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
+                df_carteira = _trata_cnpj(df_carteira)
+                df_carteira = _renomeia_cnpj_fundo(df_carteira)
+                df_carteira = df_carteira.compute()
+                df_carteira.to_sql('COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC', engine, if_exists='append', index=False)
+                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
 
         elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.COTA_DE_FUNDO:
             for arquivo in arquivos_do_tipo:
                 logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(
-                    arquivo, 
-                    delimiter=';', 
-                    encoding='latin-1', 
-                    dtype=dask_dtype,
-                    quoting=3,  # QUOTE_NONE
-                    on_bad_lines='skip',
-                    error_bad_lines=False
-                )
+                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
                 if 'TP_FUNDO' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
 
@@ -195,15 +123,7 @@ def carrega_informacao_carteira():
         elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.SWAP:
             for arquivo in arquivos_do_tipo:
                 logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(
-                    arquivo, 
-                    delimiter=';', 
-                    encoding='latin-1', 
-                    dtype=dask_dtype,
-                    quoting=3,  # QUOTE_NONE
-                    on_bad_lines='skip',
-                    error_bad_lines=False
-                )
+                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
                 if 'TP_FUNDO' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
                 df_carteira = _trata_cnpj(df_carteira)
@@ -215,15 +135,7 @@ def carrega_informacao_carteira():
         elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_CODIFICADOS:
             for arquivo in arquivos_do_tipo:
                 logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(
-                    arquivo, 
-                    delimiter=';', 
-                    encoding='latin-1', 
-                    dtype=dask_dtype,
-                    quoting=3,  # QUOTE_NONE
-                    on_bad_lines='skip',
-                    error_bad_lines=False
-                )
+                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
                 if 'TP_FUNDO' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
                 df_carteira = _trata_cnpj(df_carteira)
@@ -235,15 +147,7 @@ def carrega_informacao_carteira():
         elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEPOSITO_A_PRAZO_OU_IF:
             for arquivo in arquivos_do_tipo:
                 logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(
-                    arquivo, 
-                    delimiter=';', 
-                    encoding='latin-1', 
-                    dtype=dask_dtype,
-                    quoting=3,  # QUOTE_NONE
-                    on_bad_lines='skip',
-                    error_bad_lines=False
-                )
+                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
                 if 'TP_FUNDO' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
                 df_carteira = _trata_cnpj(df_carteira)
@@ -255,15 +159,7 @@ def carrega_informacao_carteira():
         elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PRIVADO:
             for arquivo in arquivos_do_tipo:
                 logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(
-                    arquivo, 
-                    delimiter=';', 
-                    encoding='latin-1', 
-                    dtype=dask_dtype,
-                    quoting=3,  # QUOTE_NONE
-                    on_bad_lines='skip',
-                    error_bad_lines=False
-                )
+                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
                 if 'TP_FUNDO' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
                 df_carteira = _trata_cnpj(df_carteira)
@@ -275,15 +171,7 @@ def carrega_informacao_carteira():
         elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.INVESTIMENTO_NO_EXTERIOR:
             for arquivo in arquivos_do_tipo:
                 logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(
-                    arquivo, 
-                    delimiter=';', 
-                    encoding='latin-1', 
-                    dtype=dask_dtype,
-                    quoting=3,  # QUOTE_NONE
-                    on_bad_lines='skip',
-                    error_bad_lines=False
-                )
+                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
                 if 'TP_FUNDO' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
                 df_carteira = _trata_cnpj(df_carteira)
@@ -295,15 +183,7 @@ def carrega_informacao_carteira():
         elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_NAO_CODIFICADOS:
             for arquivo in arquivos_do_tipo:
                 logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(
-                    arquivo, 
-                    delimiter=';', 
-                    encoding='latin-1', 
-                    dtype=dask_dtype,
-                    quoting=3,  # QUOTE_NONE
-                    on_bad_lines='skip',
-                    error_bad_lines=False
-                )
+                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
                 if 'TP_FUNDO' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
                 df_carteira = _renomeia_cnpj_fundo(df_carteira)
