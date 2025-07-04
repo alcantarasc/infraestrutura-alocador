@@ -340,9 +340,31 @@ def load_data_to_db():
 
         for i, batch in enumerate(batches):
             batch_start = time.time()
-            batch.to_sql('temp_informacao_cadastral', con=conn, if_exists='append', index=False, method='multi')
-            batch_time = time.time() - batch_start
-            logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
+            try:
+                batch.to_sql('temp_informacao_cadastral', con=conn, if_exists='append', index=False, method='multi')
+                batch_time = time.time() - batch_start
+                logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) in {batch_time:.2f}s")
+            except Exception as e:
+                logger.warning(f"Batch {i + 1} failed with error: {e}")
+                logger.warning(f"Processing batch {i + 1} row by row...")
+                
+                # Process batch row by row
+                successful_rows = 0
+                failed_rows = 0
+                
+                for idx, row in batch.iterrows():
+                    try:
+                        # Convert row to DataFrame for single row insertion
+                        row_df = pd.DataFrame([row])
+                        row_df.to_sql('temp_informacao_cadastral', con=conn, if_exists='append', index=False, method='multi')
+                        successful_rows += 1
+                    except Exception as row_error:
+                        failed_rows += 1
+                        logger.error(f"Row {idx} failed: {row_error}")
+                        logger.error(f"Row data: {row.to_dict()}")
+                
+                batch_time = time.time() - batch_start
+                logger.info(f"Batch {i + 1}/{len(batches)} processed row by row: {successful_rows} successful, {failed_rows} failed in {batch_time:.2f}s")
 
         logger.info("Data loaded into temporary table for informacao_cadastral")
 
