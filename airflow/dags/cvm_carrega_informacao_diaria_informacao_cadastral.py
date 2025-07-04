@@ -431,7 +431,8 @@ def load_data_to_db():
     registro_classe = ROOT_DIR / 'info-cadastral' / 'registro_classe.csv'
     registro_subclasse = ROOT_DIR / 'info-cadastral' / 'registro_subclasse.csv'
 
-    df_registro_fundo = pd.read_csv(registro_fundo, delimiter=';', encoding='latin-1')
+    df_registro_fundo = pd.read_csv(registro_fundo, delimiter=';', encoding='latin-1', 
+                                   on_bad_lines='skip', engine='python')
 
     df_registro_fundo.rename(columns={
         'ID_Registro_Fundo': 'ID_REGISTRO_FUNDO',
@@ -650,7 +651,8 @@ ON CONFLICT (id_registro_classe) DO UPDATE SET
         merge_time = time.time() - merge_start
         logger.info(f"Data merged from temporary table into registro_classe in {merge_time:.2f}s")
 
-    df_registro_subclasse = pd.read_csv(registro_subclasse, delimiter=';', encoding='latin-1')
+    df_registro_subclasse = pd.read_csv(registro_subclasse, delimiter=';', encoding='latin-1',
+                                       on_bad_lines='skip', engine='python')
     df_registro_subclasse.rename(columns={
         'ID_Registro_Classe': 'ID_REGISTRO_CLASSE',
         'ID_Subclasse': 'ID_SUBCLASSE',
