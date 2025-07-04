@@ -64,7 +64,7 @@ def carrega_informacao_carteira():
     engine = create_engine(URI, pool_pre_ping=True, pool_recycle=3600)
     
     # Primeiro, vamos verificar se as tabelas existem
-    with engine.begin() as conn:
+    with engine.connect() as conn:
         result = conn.execute(text("""
             SELECT table_name 
             FROM information_schema.tables 
@@ -86,11 +86,12 @@ def carrega_informacao_carteira():
     ]
 
     logger.info("Limpando (TRUNCATE) tabelas existentes...")
-    with engine.begin() as conn:
+    with engine.connect() as conn:
         for tabela in tabelas_para_limpar:
             if tabela in existing_tables:
                 logger.info(f"Truncando tabela: {tabela}")
                 conn.execute(text(f"TRUNCATE TABLE {tabela};"))
+                conn.commit()
             else:
                 logger.warning(f"Tabela {tabela} não existe!")
 
@@ -157,15 +158,14 @@ def carrega_informacao_carteira():
                 # Vamos verificar se os dados estão sendo lidos corretamente
                 logger.info(f"DataFrame shape: {df_carteira.shape}")
                 logger.info(f"DataFrame columns: {list(df_carteira.columns)}")
-                logger.info(f"Primeiras 5 linhas: {df_carteira.head()}")
                 
                 # Verificar se a tabela existe antes de tentar inserir
                 if tabela_destino[tipo] not in existing_tables:
                     logger.error(f"Tabela {tabela_destino[tipo]} não existe!")
                     continue
                 
-                # Usa processamento em lotes como no arquivo que funciona
-                with engine.begin() as conn:
+                # Usa processamento em lotes sem engine.begin()
+                with engine.connect() as conn:
                     batch_size = 10000
                     total_rows = len(df_carteira)
                     batches = [df_carteira[i:i + batch_size] for i in range(0, total_rows, batch_size)]
@@ -175,9 +175,11 @@ def carrega_informacao_carteira():
                     for i, batch in enumerate(batches):
                         try:
                             batch.to_sql(tabela_destino[tipo], con=conn, if_exists='append', index=False, method='multi')
+                            conn.commit()  # Commit explícito após cada batch
                             logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) to {tabela_destino[tipo]}")
                         except Exception as e:
                             logger.error(f"Erro ao salvar batch {i + 1}: {e}")
+                            conn.rollback()  # Rollback em caso de erro
                             raise
                     
                     # Vamos verificar se os dados foram realmente salvos
