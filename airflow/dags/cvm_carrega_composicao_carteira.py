@@ -60,7 +60,7 @@ def carrega_informacao_carteira():
     logger.info("Starting data load process")
     URI = f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm'
     print(URI)
-    engine = create_engine(URI)
+    engine = create_engine(URI, pool_pre_ping=True, pool_recycle=3600)
     
     tabelas_para_limpar = [
         "COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC",
@@ -139,9 +139,18 @@ def carrega_informacao_carteira():
                 
                 df_carteira = df_carteira.compute()
                 
-                # Usa uma conexão ativa para salvar no banco
+                # Usa processamento em lotes como no arquivo que funciona
                 with engine.begin() as conn:
-                    df_carteira.to_sql(tabela_destino[tipo], conn, if_exists='append', index=False)
+                    batch_size = 10000
+                    total_rows = len(df_carteira)
+                    batches = [df_carteira[i:i + batch_size] for i in range(0, total_rows, batch_size)]
+                    
+                    logger.info(f"Loading {total_rows} rows in {len(batches)} batches of {batch_size}")
+                    
+                    for i, batch in enumerate(batches):
+                        batch.to_sql(tabela_destino[tipo], con=conn, if_exists='append', index=False, method='multi')
+                        logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) to {tabela_destino[tipo]}")
+                    
                     logger.info(f"Data loaded to {tabela_destino[tipo]} table from file: {arquivo.name}")
 
     if not arquivos_no_diretorio_carteira:
