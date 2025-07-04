@@ -86,6 +86,9 @@ def carrega_informacao_carteira():
     # filter only files that begins with cda_fi_BLC
     arquivos_no_diretorio_carteira = list(filter(lambda x: x.name.startswith('cda_fi_BLC'), arquivos_no_diretorio_carteira))
 
+    # ordena os arquivos por data cda_fi_BLC_1_202506.csv
+    arquivos_no_diretorio_carteira.sort(key=lambda x: datetime.strptime(x.name.split('_')[4], '%Y%m'), reverse=True)
+
     for tipo in IdentificacaoPlanilhaRelatorioComposicaoAplicacao:
         arquivos_do_tipo = list(filter(lambda x: x.name.split('_')[3] == tipo.value, arquivos_no_diretorio_carteira))
         if not arquivos_do_tipo:
