@@ -96,8 +96,8 @@ def load_data_to_db():
         logger.error("No file found for informacao_diaria")
         raise FileNotFoundError('Não foi encontrado arquivo para informação diária')
 
-    arquivos_no_diretorio_diaria = []
-    for arquivo in arquivos_no_diretorio_diaria:
+    
+    for arquivo in [arquivos_no_diretorio_diaria[-1]]:
         file_start_time = time.time()
         try:
             logger.info(f"Loading informacao_diaria data from file: {arquivo.name}")
