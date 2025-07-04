@@ -154,6 +154,9 @@ def carrega_informacao_carteira():
                 
                 df_carteira = df_carteira.compute()
                 
+                # Converte todas as colunas para minúsculas para corresponder ao PostgreSQL
+                df_carteira.columns = df_carteira.columns.str.lower()
+                
                 # Vamos verificar se os dados estão sendo lidos corretamente
                 logger.info(f"DataFrame shape: {df_carteira.shape}")
                 logger.info(f"DataFrame columns: {list(df_carteira.columns)}")
