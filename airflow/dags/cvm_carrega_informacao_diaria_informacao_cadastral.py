@@ -221,11 +221,19 @@ def load_data_to_db():
     df_cadastral['INF_TAXA_PERFM'] = df_cadastral['INF_TAXA_PERFM'].apply(truncate_value, args=(400,))
     
     # Truncate CHAR(1) fields
-    df_cadastral['ENTID_INVEST'] = df_cadastral['ENTID_INVEST'].apply(truncate_char_field, args=(1,))
-    df_cadastral['FUNDO_COTAS'] = df_cadastral['FUNDO_COTAS'].apply(truncate_char_field, args=(1,))
-    df_cadastral['FUNDO_EXCLUSIVO'] = df_cadastral['FUNDO_EXCLUSIVO'].apply(truncate_char_field, args=(1,))
-    df_cadastral['INVEST_CEMPR_EXTER'] = df_cadastral['INVEST_CEMPR_EXTER'].apply(truncate_char_field, args=(1,))
-    df_cadastral['PF_PJ_GESTOR'] = df_cadastral['PF_PJ_GESTOR'].apply(truncate_char_field, args=(2,))
+    char_fields_config = {
+        'ENTID_INVEST': 1,
+        'FUNDO_COTAS': 1,
+        'FUNDO_EXCLUSIVO': 1,
+        'INVEST_CEMPR_EXTER': 1,
+        'PF_PJ_GESTOR': 2
+    }
+    
+    for field, max_length in char_fields_config.items():
+        if field in df_cadastral.columns:
+            df_cadastral[field] = df_cadastral[field].apply(truncate_char_field, args=(max_length,))
+        else:
+            logger.info(f"Column {field} not found in cadastral data, skipping truncation")
 
     # Fix invalid dates by replacing them with a very old date
     date_columns = ['DT_CANCEL', 'DT_CONST', 'DT_FIM_EXERC', 'DT_INI_ATIV', 'DT_INI_CLASSE', 
@@ -255,15 +263,21 @@ def load_data_to_db():
                                                                                       'CNPJ_FUNDO')
     
     # Truncate CHAR(1) fields in historical data too
-    try:
-        df_cadastral_historico['ENTID_INVEST'] = df_cadastral_historico['ENTID_INVEST'].apply(truncate_char_field, args=(1,))
-        df_cadastral_historico['FUNDO_COTAS'] = df_cadastral_historico['FUNDO_COTAS'].apply(truncate_char_field, args=(1,))
-        df_cadastral_historico['FUNDO_EXCLUSIVO'] = df_cadastral_historico['FUNDO_EXCLUSIVO'].apply(truncate_char_field, args=(1,))
-        df_cadastral_historico['INVEST_CEMPR_EXTER'] = df_cadastral_historico['INVEST_CEMPR_EXTER'].apply(truncate_char_field, args=(1,))
-        df_cadastral_historico['PF_PJ_GESTOR'] = df_cadastral_historico['PF_PJ_GESTOR'].apply(truncate_char_field, args=(2,))
-    except Exception as e:
-        logger.error(f"Error truncating CHAR fields in historical data: {e}")
+    char_fields_config_historical = {
+        'ENTID_INVEST': 1,
+        'FUNDO_COTAS': 1,
+        'FUNDO_EXCLUSIVO': 1,
+        'INVEST_CEMPR_EXTER': 1,
+        'PF_PJ_GESTOR': 2,
+        'TRIB_LPRAZO': 3
+    }
     
+    for field, max_length in char_fields_config_historical.items():
+        if field in df_cadastral_historico.columns:
+            df_cadastral_historico[field] = df_cadastral_historico[field].apply(truncate_char_field, args=(max_length,))
+        else:
+            logger.info(f"Column {field} not found in historical data, skipping truncation")
+
     # Fix invalid dates in historical data as well
     for col in date_columns:
         if col in df_cadastral_historico.columns:
