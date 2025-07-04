@@ -228,10 +228,8 @@ def load_data_to_db():
                                                                               'CNPJ_CUSTODIANTE')
     df_cadastral['CNPJ_CONTROLADOR'] = df_cadastral['CNPJ_CONTROLADOR'].apply(remove_formatacao_cnpj,
                                                                               'CNPJ_CONTROLADOR')
-    df_cadastral['DENOM_SOCIAL'] = df_cadastral['DENOM_SOCIAL'].apply(truncate_value, args=(100,))
-    df_cadastral['INF_TAXA_PERFM'] = df_cadastral['INF_TAXA_PERFM'].apply(truncate_value, args=(400,))
     
-    # Truncate CHAR(1) fields
+    # Truncate CHAR(1) fields only - these need to be exactly 1 character
     char_fields_config = {
         'ENTID_INVEST': 1,
         'FUNDO_COTAS': 1,
@@ -240,36 +238,9 @@ def load_data_to_db():
         'PF_PJ_GESTOR': 2
     }
     
-    # Add VARCHAR field truncation with more specific logging
-    varchar_fields_config = {
-        'TP_FUNDO': 3,  # Based on the error, this field has VARCHAR(3)
-        'CLASSE': 50,   # Adjust these values based on your actual schema
-        'CLASSE_ANBIMA': 50,
-        'SIT': 20,
-        'PUBLICO_ALVO': 100,
-        'RENTAB_FUNDO': 50
-    }
-    
     for field, max_length in char_fields_config.items():
         if field in df_cadastral.columns:
             df_cadastral[field] = df_cadastral[field].apply(truncate_char_field, args=(max_length,))
-        else:
-            logger.info(f"Column {field} not found in cadastral data, skipping truncation")
-
-    # Truncate VARCHAR fields with better error handling
-    for field, max_length in varchar_fields_config.items():
-        if field in df_cadastral.columns:
-            # Check for values that exceed the limit before truncating
-            long_values = df_cadastral[field].apply(lambda x: len(str(x).strip()) if pd.notna(x) and str(x).strip() != '' else 0) > max_length
-            if long_values.any():
-                count_long = long_values.sum()
-                logger.warning(f"Found {count_long} values in column {field} that exceed {max_length} characters")
-                # Show some examples
-                examples = df_cadastral[long_values][field].head(3).tolist()
-                logger.warning(f"Examples of long values in {field}: {examples}")
-            
-            df_cadastral[field] = df_cadastral[field].apply(truncate_varchar_field, args=(max_length,))
-            logger.info(f"Truncated column {field} to max length {max_length}")
         else:
             logger.info(f"Column {field} not found in cadastral data, skipping truncation")
 
@@ -296,7 +267,6 @@ def load_data_to_db():
     # Historical
     df_cadastral_historico = pd.read_csv(arquivo_cadastral_historico, delimiter=';', encoding='latin-1',
                                          on_bad_lines='skip', engine='python')
-    df_cadastral_historico['DENOM_SOCIAL'] = df_cadastral_historico['DENOM_SOCIAL'].apply(truncate_value, args=(100,))
     df_cadastral_historico['CNPJ_FUNDO'] = df_cadastral_historico['CNPJ_FUNDO'].apply(remove_formatacao_cnpj,
                                                                                       'CNPJ_FUNDO')
     
@@ -310,36 +280,9 @@ def load_data_to_db():
         'TRIB_LPRAZO': 3
     }
     
-    # Add VARCHAR field truncation for historical data
-    varchar_fields_config_historical = {
-        'TP_FUNDO': 3,
-        'CLASSE': 50,
-        'CLASSE_ANBIMA': 50,
-        'SIT': 20,
-        'PUBLICO_ALVO': 100,
-        'RENTAB_FUNDO': 50
-    }
-    
     for field, max_length in char_fields_config_historical.items():
         if field in df_cadastral_historico.columns:
             df_cadastral_historico[field] = df_cadastral_historico[field].apply(truncate_char_field, args=(max_length,))
-        else:
-            logger.info(f"Column {field} not found in historical data, skipping truncation")
-
-    # Truncate VARCHAR fields in historical data with better error handling
-    for field, max_length in varchar_fields_config_historical.items():
-        if field in df_cadastral_historico.columns:
-            # Check for values that exceed the limit before truncating
-            long_values = df_cadastral_historico[field].apply(lambda x: len(str(x).strip()) if pd.notna(x) and str(x).strip() != '' else 0) > max_length
-            if long_values.any():
-                count_long = long_values.sum()
-                logger.warning(f"Found {count_long} values in historical column {field} that exceed {max_length} characters")
-                # Show some examples
-                examples = df_cadastral_historico[long_values][field].head(3).tolist()
-                logger.warning(f"Examples of long values in historical {field}: {examples}")
-            
-            df_cadastral_historico[field] = df_cadastral_historico[field].apply(truncate_varchar_field, args=(max_length,))
-            logger.info(f"Truncated historical column {field} to max length {max_length}")
         else:
             logger.info(f"Column {field} not found in historical data, skipping truncation")
 
@@ -513,7 +456,7 @@ def load_data_to_db():
     duplicates_dropped = df_registro_fundo_before - df_registro_fundo_after
     logger.info(
         f"Dropped {duplicates_dropped} duplicates from registro_fundo (before: {df_registro_fundo_before}, after: {df_registro_fundo_after})")
-    df_registro_fundo['DENOMINACAO_SOCIAL'] = df_registro_fundo['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(100,))
+    df_registro_fundo['DENOMINACAO_SOCIAL'] = df_registro_fundo['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(500,))
     df_registro_fundo.columns = df_registro_fundo.columns.str.lower()
     # Create a temporary table for registro_fundo
     with engine.begin() as conn:
@@ -611,7 +554,7 @@ def load_data_to_db():
     }, inplace=True)
 
     # Create a temporary table for registro_classe
-    df_registro_classe['DENOMINACAO_SOCIAL'] = df_registro_classe['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(100,))
+    df_registro_classe['DENOMINACAO_SOCIAL'] = df_registro_classe['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(500,))
     df_registro_classe.columns = df_registro_classe.columns.str.lower()
 
     # Before loading into temp_registro_classe
@@ -712,7 +655,7 @@ ON CONFLICT (id_registro_classe) DO UPDATE SET
         'Exclusivo': 'EXCLUSIVO',
         'Publico_Alvo': 'PUBLICO_ALVO'
     }, inplace=True)
-    df_registro_subclasse['DENOMINACAO_SOCIAL'] = df_registro_subclasse['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(100,))
+    df_registro_subclasse['DENOMINACAO_SOCIAL'] = df_registro_subclasse['DENOMINACAO_SOCIAL'].apply(truncate_value, args=(500,))
     df_registro_subclasse.columns = df_registro_subclasse.columns.str.lower()
     with engine.begin() as conn:
         # Create temp table
