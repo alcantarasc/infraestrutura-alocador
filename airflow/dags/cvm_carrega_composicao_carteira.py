@@ -86,12 +86,11 @@ def carrega_informacao_carteira():
     ]
 
     logger.info("Limpando (TRUNCATE) tabelas existentes...")
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         for tabela in tabelas_para_limpar:
             if tabela in existing_tables:
                 logger.info(f"Truncando tabela: {tabela}")
                 conn.execute(text(f"TRUNCATE TABLE {tabela};"))
-                conn.commit()
             else:
                 logger.warning(f"Tabela {tabela} não existe!")
 
@@ -164,8 +163,8 @@ def carrega_informacao_carteira():
                     logger.error(f"Tabela {tabela_destino[tipo]} não existe!")
                     continue
                 
-                # Usa processamento em lotes sem engine.begin()
-                with engine.connect() as conn:
+                # Usa processamento em lotes com engine.begin() para cada arquivo
+                with engine.begin() as conn:
                     batch_size = 10000
                     total_rows = len(df_carteira)
                     batches = [df_carteira[i:i + batch_size] for i in range(0, total_rows, batch_size)]
@@ -175,11 +174,9 @@ def carrega_informacao_carteira():
                     for i, batch in enumerate(batches):
                         try:
                             batch.to_sql(tabela_destino[tipo], con=conn, if_exists='append', index=False, method='multi')
-                            conn.commit()  # Commit explícito após cada batch
                             logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) to {tabela_destino[tipo]}")
                         except Exception as e:
                             logger.error(f"Erro ao salvar batch {i + 1}: {e}")
-                            conn.rollback()  # Rollback em caso de erro
                             raise
                     
                     # Vamos verificar se os dados foram realmente salvos
