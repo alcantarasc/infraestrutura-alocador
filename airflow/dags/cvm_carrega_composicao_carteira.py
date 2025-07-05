@@ -10,6 +10,7 @@ from airflow.operators.python import PythonOperator
 from settings import ROOT_DIR
 from airflow.models import Variable
 import dask.dataframe as dd
+from sqlalchemy.sql import text
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -60,24 +61,38 @@ def carrega_informacao_carteira():
     logger.info("Starting data load process")
     URI = f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm'
     print(URI)
-    engine = create_engine(URI)
+    engine = create_engine(URI, pool_pre_ping=True, pool_recycle=3600)
+    
+    # Primeiro, vamos verificar se as tabelas existem
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name LIKE 'composicao_carteira_%'
+        """))
+        existing_tables = [row[0] for row in result.fetchall()]
+        logger.info(f"Tabelas existentes: {existing_tables}")
     
     tabelas_para_limpar = [
-        "COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC",
-        "COMPOSICAO_CARTEIRA_FUNDOS",
-        "COMPOSICAO_CARTEIRA_SWAPS",
-        "COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS",
-        "COMPOSICAO_CARTEIRA_DEPOSITO_PRAZO_IF",
-        "COMPOSICAO_CARTEIRA_TITULO_PRIVADO",
-        "COMPOSICAO_CARTEIRA_INVESTIMENTO_EXTERIOR",
-        "COMPOSICAO_CARTEIRA_NAO_CODIFICADOS"
+        "composicao_carteira_titulo_publico_selic",
+        "composicao_carteira_fundos",
+        "composicao_carteira_swaps",
+        "composicao_carteira_demais_codificados",
+        "composicao_carteira_deposito_prazo_if",
+        "composicao_carteira_titulo_privado",
+        "composicao_carteira_investimento_exterior",
+        "composicao_carteira_nao_codificados"
     ]
 
     logger.info("Limpando (TRUNCATE) tabelas existentes...")
     with engine.begin() as conn:
         for tabela in tabelas_para_limpar:
-            logger.info(f"Truncando tabela: {tabela}")
-            conn.execute(f"TRUNCATE TABLE {tabela};")
+            if tabela in existing_tables:
+                logger.info(f"Truncando tabela: {tabela}")
+                conn.execute(text(f"TRUNCATE TABLE {tabela};"))
+            else:
+                logger.warning(f"Tabela {tabela} não existe!")
 
     # Load informacao_carteira
     diretorio_carteira = ROOT_DIR / 'composicao-carteira'
@@ -86,115 +101,97 @@ def carrega_informacao_carteira():
     # filter only files that begins with cda_fi_BLC
     arquivos_no_diretorio_carteira = list(filter(lambda x: x.name.startswith('cda_fi_BLC'), arquivos_no_diretorio_carteira))
 
-    for tipo in IdentificacaoPlanilhaRelatorioComposicaoAplicacao:
-        arquivos_do_tipo = list(filter(lambda x: x.name.split('_')[3] == tipo.value, arquivos_no_diretorio_carteira))
-        if not arquivos_do_tipo:
-            logger.error(f"No file found for {tipo.name}")
-            raise FileNotFoundError(f'Não foi encontrado arquivo para {tipo.name}')
+    # Agrupa arquivos por data
+    arquivos_por_data = {}
+    for arquivo in arquivos_no_diretorio_carteira:
+        data_arquivo = arquivo.name.split('_')[4][:6]  # Extrai YYYYMM
+        if data_arquivo not in arquivos_por_data:
+            arquivos_por_data[data_arquivo] = []
+        arquivos_por_data[data_arquivo].append(arquivo)
+
+    # Ordena as datas em ordem decrescente
+    datas_ordenadas = sorted(arquivos_por_data.keys(), reverse=True)
+
+    # Mapeia o tipo para a tabela correspondente
+    tabela_destino = {
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PUBLICO_SELIC: 'composicao_carteira_titulo_publico_selic',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.COTA_DE_FUNDO: 'composicao_carteira_fundos',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.SWAP: 'composicao_carteira_swaps',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_CODIFICADOS: 'composicao_carteira_demais_codificados',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEPOSITO_A_PRAZO_OU_IF: 'composicao_carteira_deposito_prazo_if',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PRIVADO: 'composicao_carteira_titulo_privado',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.INVESTIMENTO_NO_EXTERIOR: 'composicao_carteira_investimento_exterior',
+        IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_NAO_CODIFICADOS: 'composicao_carteira_nao_codificados'
+    }
+
+    # Processa cada data
+    for data in datas_ordenadas:
+        logger.info(f"Processando arquivos da data: {data}")
+        arquivos_da_data = arquivos_por_data[data]
         
-        if tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PUBLICO_SELIC:
+        # Processa todos os tipos da mesma data
+        for tipo in IdentificacaoPlanilhaRelatorioComposicaoAplicacao:
+            arquivos_do_tipo = list(filter(lambda x: x.name.split('_')[3] == tipo.value, arquivos_da_data))
+            if not arquivos_do_tipo:
+                logger.warning(f"No file found for {tipo.name} in date {data}")
+                continue
+            
             for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype)
-                # if TP_FUNDO rename to TP_FUNDO_CLASSE
+                logger.info(f"Loading {tipo.name} data from file: {arquivo.name}")
+                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype, on_bad_lines='skip', engine='python')
+                
+                # Renomeia TP_FUNDO se existir
                 if 'TP_FUNDO' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
+                
+                # Trata CNPJs
                 df_carteira = _trata_cnpj(df_carteira)
                 df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_TITULO_PUBLICO_SELIC', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.COTA_DE_FUNDO:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype)
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-
-                if 'CNPJ_FUNDO_COTA' in df_carteira.columns:
+                
+                # Renomeia CNPJ_FUNDO_COTA se existir (apenas para COTA_DE_FUNDO)
+                if tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.COTA_DE_FUNDO and 'CNPJ_FUNDO_COTA' in df_carteira.columns:
                     df_carteira = df_carteira.rename(columns={'CNPJ_FUNDO_COTA': 'CNPJ_FUNDO_CLASSE_COTA'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
+                
                 df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_FUNDOS', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.SWAP:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype)
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_SWAPS', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_CODIFICADOS:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype)
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEPOSITO_A_PRAZO_OU_IF:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype)
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_DEPOSITO_PRAZO_IF', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.TITULO_PRIVADO:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype)
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_TITULO_PRIVADO', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.INVESTIMENTO_NO_EXTERIOR:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype)
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_INVESTIMENTO_EXTERIOR', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
-
-        elif tipo == IdentificacaoPlanilhaRelatorioComposicaoAplicacao.DEMAIS_NAO_CODIFICADOS:
-            for arquivo in arquivos_do_tipo:
-                logger.info(f"Loading informacao_carteira data from file: {arquivo.name}")
-                df_carteira = dd.read_csv(arquivo, delimiter=';', encoding='latin-1', dtype=dask_dtype)
-                if 'TP_FUNDO' in df_carteira.columns:
-                    df_carteira = df_carteira.rename(columns={'TP_FUNDO': 'TP_FUNDO_CLASSE'})
-                df_carteira = _renomeia_cnpj_fundo(df_carteira)
-                df_carteira = _trata_cnpj(df_carteira)
-                df_carteira = df_carteira.compute()
-                df_carteira.to_sql('COMPOSICAO_CARTEIRA_NAO_CODIFICADOS', engine, if_exists='append', index=False)
-                logger.info(f"Data loaded to informacao_carteira table from file: {arquivo.name}")
+                
+                # Converte todas as colunas para minúsculas para corresponder ao PostgreSQL
+                df_carteira.columns = df_carteira.columns.str.lower()
+                
+                # Vamos verificar se os dados estão sendo lidos corretamente
+                logger.info(f"DataFrame shape: {df_carteira.shape}")
+                logger.info(f"DataFrame columns: {list(df_carteira.columns)}")
+                
+                # Verificar se a tabela existe antes de tentar inserir
+                if tabela_destino[tipo] not in existing_tables:
+                    logger.error(f"Tabela {tabela_destino[tipo]} não existe!")
+                    continue
+                
+                # Usa processamento em lotes com engine.begin() para cada arquivo
+                with engine.begin() as conn:
+                    batch_size = 10000
+                    total_rows = len(df_carteira)
+                    batches = [df_carteira[i:i + batch_size] for i in range(0, total_rows, batch_size)]
+                    
+                    logger.info(f"Loading {total_rows} rows in {len(batches)} batches of {batch_size}")
+                    
+                    for i, batch in enumerate(batches):
+                        try:
+                            batch.to_sql(tabela_destino[tipo], con=conn, if_exists='append', index=False, method='multi')
+                            logger.info(f"Batch {i + 1}/{len(batches)} loaded ({len(batch)} rows) to {tabela_destino[tipo]}")
+                        except Exception as e:
+                            logger.error(f"Erro ao salvar batch {i + 1}: {e}")
+                            raise
+                    
+                    # Vamos verificar se os dados foram realmente salvos
+                    result = conn.execute(text(f"SELECT COUNT(*) FROM {tabela_destino[tipo]}"))
+                    count = result.fetchone()[0]
+                    logger.info(f"Total de registros na tabela {tabela_destino[tipo]} após inserção: {count}")
+                    
+                    logger.info(f"Data loaded to {tabela_destino[tipo]} table from file: {arquivo.name}")
 
     if not arquivos_no_diretorio_carteira:
         logger.error("No file found for informacao_carteira")
-        raise FileNotFoundError('Não foi encontrado arquivo para informação de carteira')    
+        raise FileNotFoundError('Não foi encontrado arquivo para informação de carteira')
 
 dag = DAG(
     dag_id='load_informacao_carteira',
