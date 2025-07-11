@@ -57,20 +57,12 @@ def get_ranking_movimentacao_ranges():
     try:
         datas = RepositoryScreeningCvm.datas_informacao_diaria()
 
-        # 7 dias
-        data_7_dias = datas[0] - timedelta(days=7)
-
-        # 31 dias
-        data_31_dias = datas[0] - timedelta(days=31)
-        
         ranking_dia = RepositoryScreeningCvm.ranking_movimentacao_veiculos(datas[0], datas[0])
-        ranking_7_dias = RepositoryScreeningCvm.ranking_movimentacao_veiculos(data_7_dias, datas[0])
-        ranking_31_dias = RepositoryScreeningCvm.ranking_movimentacao_veiculos(data_31_dias, datas[0])
-        
+                
         return {
             "dia": ranking_dia,
-            "7_dias": ranking_7_dias,
-            "31_dias": ranking_31_dias
+            "7_dias": [],
+            "31_dias": []
         }
     except Exception as e:
         print(f"Erro na busca: {str(e)}")
