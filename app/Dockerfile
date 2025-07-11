@@ -30,9 +30,14 @@ RUN python3 -m venv /venv && \
 
 # Copia configuração do Nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copia configuração do supervisor
+COPY supervisord.conf /app/supervisord.conf
 # Copia entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Cria diretório para logs do supervisor
+RUN mkdir -p /var/log/supervisor
 
 EXPOSE 80
 
