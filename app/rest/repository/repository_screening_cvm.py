@@ -149,19 +149,19 @@ class RepositoryScreeningCvm:
                     i.vl_total,
                     SUM(i.resg_dia) as total_resgates,
                     SUM(i.captc_dia) as total_aportes,
-                    SUM(i.resg_dia - i.captc_dia) as fluxo_liquido,
+                    SUM(i.captc_dia - i.resg_dia) as fluxo_liquido,
                     CASE 
                         WHEN i.vl_total > 0 THEN 
-                            (SUM(i.resg_dia - i.captc_dia) / i.vl_total) * 100
+                            (SUM(i.captc_dia - i.resg_dia) / i.vl_total) * 100
                         ELSE 0 
                     END as percentual_fluxo_liquido,
-                    ROW_NUMBER() OVER (ORDER BY SUM(i.resg_dia - i.captc_dia) DESC) as ranking
+                    ROW_NUMBER() OVER (ORDER BY SUM(i.captc_dia - i.resg_dia) DESC) as ranking
                 FROM INFORMACAO_DIARIA i
                 LEFT JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
                 WHERE i.dt_comptc BETWEEN :data_inicio AND :data_fim
                   AND (i.resg_dia IS NOT NULL OR i.captc_dia IS NOT NULL)
                 GROUP BY i.cnpj_fundo_classe, i.tp_fundo_classe, r.denominacao_social, i.dt_comptc, i.vl_total
-                HAVING SUM(i.resg_dia - i.captc_dia) != 0
+                HAVING SUM(i.captc_dia - i.resg_dia) != 0
                 ORDER BY fluxo_liquido DESC
             """)
             
