@@ -22,48 +22,48 @@ class RepositoryScreeningCvm:
             params = {}
             
             if data_inicio is not None and data_fim is not None:
-                data_filter = "AND c.DT_COMPTC BETWEEN :data_inicio AND :data_fim"
+                data_filter = "AND c.dt_comptc BETWEEN :data_inicio AND :data_fim"
                 params['data_inicio'] = data_inicio
                 params['data_fim'] = data_fim
             elif data_inicio is not None:
-                data_filter = "AND c.DT_COMPTC >= :data_inicio"
+                data_filter = "AND c.dt_comptc >= :data_inicio"
                 params['data_inicio'] = data_inicio
             elif data_fim is not None:
-                data_filter = "AND c.DT_COMPTC <= :data_fim"
+                data_filter = "AND c.dt_comptc <= :data_fim"
                 params['data_fim'] = data_fim
             
             # Se não há filtro de data, usa a última data disponível
             if not data_filter:
                 query = text(f"""
                     WITH ultima_data AS (
-                        SELECT MAX(DT_COMPTC) as max_dt_comptc
+                        SELECT MAX(dt_comptc) as max_dt_comptc
                         FROM COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS
                     )
                     SELECT 
-                        CNPJ_FUNDO_CLASSE,
-                        TP_FUNDO_CLASSE,
-                        SUM(VL_MERC_POS_FINAL) as valor_total_acao,
-                        ROW_NUMBER() OVER (ORDER BY SUM(VL_MERC_POS_FINAL) DESC) as ranking
+                        cnpj_fundo_classe,
+                        tp_fundo_classe,
+                        SUM(vl_merc_pos_final) as valor_total_acao,
+                        ROW_NUMBER() OVER (ORDER BY SUM(vl_merc_pos_final) DESC) as ranking
                     FROM COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS c
                     CROSS JOIN ultima_data u
-                    WHERE c.TP_APLIC = 'Ações'
-                       AND c.DT_COMPTC = u.max_dt_comptc
-                    GROUP BY CNPJ_FUNDO_CLASSE, TP_FUNDO_CLASSE
-                    HAVING SUM(VL_MERC_POS_FINAL) > 0
+                    WHERE c.tp_aplic = 'Ações'
+                       AND c.dt_comptc = u.max_dt_comptc
+                    GROUP BY cnpj_fundo_classe, tp_fundo_classe
+                    HAVING SUM(vl_merc_pos_final) > 0
                     ORDER BY valor_total_acao DESC
                 """)
             else:
                 query = text(f"""
                     SELECT 
-                        CNPJ_FUNDO_CLASSE,
-                        TP_FUNDO_CLASSE,
-                        SUM(VL_MERC_POS_FINAL) as valor_total_acao,
-                        ROW_NUMBER() OVER (ORDER BY SUM(VL_MERC_POS_FINAL) DESC) as ranking
+                        cnpj_fundo_classe,
+                        tp_fundo_classe,
+                        SUM(vl_merc_pos_final) as valor_total_acao,
+                        ROW_NUMBER() OVER (ORDER BY SUM(vl_merc_pos_final) DESC) as ranking
                     FROM COMPOSICAO_CARTEIRA_DEMAIS_CODIFICADOS c
-                    WHERE c.TP_APLIC = 'Ações'
+                    WHERE c.tp_aplic = 'Ações'
                        {data_filter}
-                    GROUP BY CNPJ_FUNDO_CLASSE, TP_FUNDO_CLASSE
-                    HAVING SUM(VL_MERC_POS_FINAL) > 0
+                    GROUP BY cnpj_fundo_classe, tp_fundo_classe
+                    HAVING SUM(vl_merc_pos_final) > 0
                     ORDER BY valor_total_acao DESC
                 """)
             
@@ -74,8 +74,8 @@ class RepositoryScreeningCvm:
             for row in result:
                 ranking_data.append({
                     'ranking': row.ranking,
-                    'cnpj_fundo_classe': row.CNPJ_FUNDO_CLASSE,
-                    'tp_fundo_classe': row.TP_FUNDO_CLASSE,
+                    'cnpj_fundo_classe': row.cnpj_fundo_classe,
+                    'tp_fundo_classe': row.tp_fundo_classe,
                     'valor_total_acao': float(row.valor_total_acao) if row.valor_total_acao else 0
                 })
             
@@ -127,9 +127,9 @@ class RepositoryScreeningCvm:
         Retorna as datas disponíveis na tabela INFORMACAO_DIARIA.
         """
         with DBConnectionHandler() as db:
-            query = text("SELECT DISTINCT DT_COMPTC FROM INFORMACAO_DIARIA ORDER BY DT_COMPTC DESC")
+            query = text("SELECT DISTINCT dt_comptc FROM INFORMACAO_DIARIA ORDER BY dt_comptc DESC")
             result = db.session.execute(query)
-            return [row.DT_COMPTC for row in result]
+            return [row.dt_comptc for row in result]
             
     def ranking_movimentacao_veiculos(data_inicio: date, data_fim: date):
         """
@@ -142,26 +142,26 @@ class RepositoryScreeningCvm:
         with DBConnectionHandler() as db:
             query = text("""
                 SELECT 
-                    i.CNPJ_FUNDO_CLASSE,
-                    i.TP_FUNDO_CLASSE,
-                    i.DT_COMPTC,
-                    r.DENOMINACAO_SOCIAL,
+                    i.cnpj_fundo_classe,
+                    i.tp_fundo_classe,
+                    i.dt_comptc,
+                    r.denominacao_social,
                     i.vl_total,
-                    SUM(i.RESG_DIA) as total_resgates,
-                    SUM(i.CAPTC_DIA) as total_aportes,
-                    SUM(i.RESG_DIA - i.CAPTC_DIA) as fluxo_liquido,
+                    SUM(i.resg_dia) as total_resgates,
+                    SUM(i.captc_dia) as total_aportes,
+                    SUM(i.resg_dia - i.captc_dia) as fluxo_liquido,
                     CASE 
                         WHEN i.vl_total > 0 THEN 
-                            (SUM(i.RESG_DIA - i.CAPTC_DIA) / i.vl_total) * 100
+                            (SUM(i.resg_dia - i.captc_dia) / i.vl_total) * 100
                         ELSE 0 
                     END as percentual_fluxo_liquido,
-                    ROW_NUMBER() OVER (ORDER BY SUM(i.RESG_DIA - i.CAPTC_DIA) DESC) as ranking
+                    ROW_NUMBER() OVER (ORDER BY SUM(i.resg_dia - i.captc_dia) DESC) as ranking
                 FROM INFORMACAO_DIARIA i
-                LEFT JOIN REGISTRO_FUNDO r ON i.CNPJ_FUNDO_CLASSE = r.CNPJ_FUNDO
-                WHERE i.DT_COMPTC BETWEEN :data_inicio AND :data_fim
-                  AND (i.RESG_DIA IS NOT NULL OR i.CAPTC_DIA IS NOT NULL)
-                GROUP BY i.CNPJ_FUNDO_CLASSE, i.TP_FUNDO_CLASSE, r.DENOMINACAO_SOCIAL, i.DT_COMPTC, i.vl_total
-                HAVING SUM(i.RESG_DIA - i.CAPTC_DIA) != 0
+                LEFT JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
+                WHERE i.dt_comptc BETWEEN :data_inicio AND :data_fim
+                  AND (i.resg_dia IS NOT NULL OR i.captc_dia IS NOT NULL)
+                GROUP BY i.cnpj_fundo_classe, i.tp_fundo_classe, r.denominacao_social, i.dt_comptc, i.vl_total
+                HAVING SUM(i.resg_dia - i.captc_dia) != 0
                 ORDER BY fluxo_liquido DESC
             """)
             
@@ -175,14 +175,14 @@ class RepositoryScreeningCvm:
             for row in result:
                 ranking_data.append({
                     'ranking': row.ranking,
-                    'cnpj_fundo_classe': row.CNPJ_FUNDO_CLASSE,
-                    'tp_fundo_classe': row.TP_FUNDO_CLASSE,
-                    'denominacao_social': row.DENOMINACAO_SOCIAL,
+                    'cnpj_fundo_classe': row.cnpj_fundo_classe,
+                    'tp_fundo_classe': row.tp_fundo_classe,
+                    'denominacao_social': row.denominacao_social,
                     'total_resgates': float(row.total_resgates) if row.total_resgates else 0,
                     'total_aportes': float(row.total_aportes) if row.total_aportes else 0,
                     'fluxo_liquido': float(row.fluxo_liquido) if row.fluxo_liquido else 0,
                     'percentual_fluxo_liquido': float(row.percentual_fluxo_liquido) if row.percentual_fluxo_liquido else 0,
-                    'dt_comptc': row.DT_COMPTC,
+                    'dt_comptc': row.dt_comptc,
                     'vl_total': float(row.vl_total) if row.vl_total else 0
                 })
             
@@ -464,28 +464,28 @@ class RepositoryScreeningCvm:
         """
         with DBConnectionHandler() as db:
             # Construindo as condições de filtro
-            cnpj_condition = "AND i.CNPJ_FUNDO_CLASSE IN :cnpj_fundo_classe" if len(cnpj_fundo_classe) > 0 else ""
-            tp_fundo_condition = "AND i.TP_FUNDO_CLASSE IN :tp_fundo_classe" if len(tp_fundo_classe) > 0 else ""
+            cnpj_condition = "AND i.cnpj_fundo_classe IN :cnpj_fundo_classe" if len(cnpj_fundo_classe) > 0 else ""
+            tp_fundo_condition = "AND i.tp_fundo_classe IN :tp_fundo_classe" if len(tp_fundo_classe) > 0 else ""
             
             query = text(f"""
                 SELECT 
-                    i.CNPJ_FUNDO_CLASSE,
-                    i.TP_FUNDO_CLASSE,
-                    i.DT_COMPTC,
-                    i.ID_SUBCLASSE,
-                    i.CAPTC_DIA,
-                    i.NR_COTST,
-                    i.RESG_DIA,
-                    i.VL_PATRIM_LIQ,
-                    i.VL_QUOTA,
-                    i.VL_TOTAL,
-                    r.DENOMINACAO_SOCIAL
+                    i.cnpj_fundo_classe,
+                    i.tp_fundo_classe,
+                    i.dt_comptc,
+                    i.id_subclasse,
+                    i.captc_dia,
+                    i.nr_cotst,
+                    i.resg_dia,
+                    i.vl_patrim_liq,
+                    i.vl_quota,
+                    i.vl_total,
+                    r.denominacao_social
                 FROM INFORMACAO_DIARIA i
-                LEFT JOIN REGISTRO_FUNDO r ON i.CNPJ_FUNDO_CLASSE = r.CNPJ_FUNDO
+                LEFT JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
                 WHERE 1=1
                   {cnpj_condition}
                   {tp_fundo_condition}
-                ORDER BY i.CNPJ_FUNDO_CLASSE, i.TP_FUNDO_CLASSE, i.DT_COMPTC DESC
+                ORDER BY i.cnpj_fundo_classe, i.tp_fundo_classe, i.dt_comptc DESC
             """)
             
             # Preparando parâmetros
@@ -501,17 +501,17 @@ class RepositoryScreeningCvm:
             serie_data = []
             for row in result:
                 serie_data.append({
-                    'cnpj_fundo_classe': row.CNPJ_FUNDO_CLASSE,
-                    'tp_fundo_classe': row.TP_FUNDO_CLASSE,
-                    'dt_comptc': row.DT_COMPTC,
-                    'id_subclasse': row.ID_SUBCLASSE,
-                    'captc_dia': float(row.CAPTC_DIA) if row.CAPTC_DIA else 0,
-                    'nr_cotst': row.NR_COTST,
-                    'resg_dia': float(row.RESG_DIA) if row.RESG_DIA else 0,
-                    'vl_patrim_liq': float(row.VL_PATRIM_LIQ) if row.VL_PATRIM_LIQ else 0,
-                    'vl_quota': float(row.VL_QUOTA) if row.VL_QUOTA else 0,
-                    'vl_total': float(row.VL_TOTAL) if row.VL_TOTAL else 0,
-                    'denominacao_social': row.DENOMINACAO_SOCIAL
+                    'cnpj_fundo_classe': row.cnpj_fundo_classe,
+                    'tp_fundo_classe': row.tp_fundo_classe,
+                    'dt_comptc': row.dt_comptc,
+                    'id_subclasse': row.id_subclasse,
+                    'captc_dia': float(row.captc_dia) if row.captc_dia else 0,
+                    'nr_cotst': row.nr_cotst,
+                    'resg_dia': float(row.resg_dia) if row.resg_dia else 0,
+                    'vl_patrim_liq': float(row.vl_patrim_liq) if row.vl_patrim_liq else 0,
+                    'vl_quota': float(row.vl_quota) if row.vl_quota else 0,
+                    'vl_total': float(row.vl_total) if row.vl_total else 0,
+                    'denominacao_social': row.denominacao_social
                 })
             
             return serie_data
@@ -530,43 +530,43 @@ class RepositoryScreeningCvm:
             query = text("""
                 WITH ultima_data_por_veiculo AS (
                     SELECT 
-                        CNPJ_FUNDO_CLASSE,
-                        TP_FUNDO_CLASSE,
-                        MAX(DT_COMPTC) as ultima_data
+                        cnpj_fundo_classe,
+                        tp_fundo_classe,
+                        MAX(dt_comptc) as ultima_data
                     FROM INFORMACAO_DIARIA
-                    WHERE VL_PATRIM_LIQ IS NOT NULL
-                      AND VL_PATRIM_LIQ > 0
-                      AND TP_FUNDO_CLASSE LIKE '%CLASSES%'
-                    GROUP BY CNPJ_FUNDO_CLASSE, TP_FUNDO_CLASSE
+                    WHERE vl_patrim_liq IS NOT NULL
+                      AND vl_patrim_liq > 0
+                      AND tp_fundo_classe LIKE '%CLASSES%'
+                    GROUP BY cnpj_fundo_classe, tp_fundo_classe
                 ),
                 patrimonio_veiculos AS (
                     SELECT 
-                        r.CPF_CNPJ_GESTOR,
-                        r.GESTOR,
-                        i.CNPJ_FUNDO_CLASSE,
-                        i.TP_FUNDO_CLASSE,
-                        i.VL_PATRIM_LIQ
+                        r.cpf_cnpj_gestor,
+                        r.gestor,
+                        i.cnpj_fundo_classe,
+                        i.tp_fundo_classe,
+                        i.vl_patrim_liq
                     FROM INFORMACAO_DIARIA i
-                    INNER JOIN REGISTRO_FUNDO r ON i.CNPJ_FUNDO_CLASSE = r.CNPJ_FUNDO
-                    INNER JOIN ultima_data_por_veiculo u ON i.CNPJ_FUNDO_CLASSE = u.CNPJ_FUNDO_CLASSE 
-                        AND i.TP_FUNDO_CLASSE = u.TP_FUNDO_CLASSE 
-                        AND i.DT_COMPTC = u.ultima_data
-                    WHERE r.CPF_CNPJ_GESTOR IS NOT NULL
-                      AND r.GESTOR IS NOT NULL
-                      AND r.GESTOR != ''
-                      AND i.VL_PATRIM_LIQ IS NOT NULL
-                      AND i.VL_PATRIM_LIQ > 0
-                      AND i.TP_FUNDO_CLASSE LIKE '%CLASSES%'
+                    INNER JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
+                    INNER JOIN ultima_data_por_veiculo u ON i.cnpj_fundo_classe = u.cnpj_fundo_classe 
+                        AND i.tp_fundo_classe = u.tp_fundo_classe 
+                        AND i.dt_comptc = u.ultima_data
+                    WHERE r.cpf_cnpj_gestor IS NOT NULL
+                      AND r.gestor IS NOT NULL
+                      AND r.gestor != ''
+                      AND i.vl_patrim_liq IS NOT NULL
+                      AND i.vl_patrim_liq > 0
+                      AND i.tp_fundo_classe LIKE '%CLASSES%'
                 )
                 SELECT 
-                    CPF_CNPJ_GESTOR,
-                    GESTOR,
-                    COUNT(DISTINCT CONCAT(CNPJ_FUNDO_CLASSE, TP_FUNDO_CLASSE)) as numero_veiculos,
-                    SUM(VL_PATRIM_LIQ) as patrimonio_total_sob_gestao,
-                    ROW_NUMBER() OVER (ORDER BY SUM(VL_PATRIM_LIQ) DESC) as ranking
+                    cpf_cnpj_gestor,
+                    gestor,
+                    COUNT(DISTINCT CONCAT(cnpj_fundo_classe, tp_fundo_classe)) as numero_veiculos,
+                    SUM(vl_patrim_liq) as patrimonio_total_sob_gestao,
+                    ROW_NUMBER() OVER (ORDER BY SUM(vl_patrim_liq) DESC) as ranking
                 FROM patrimonio_veiculos
-                GROUP BY CPF_CNPJ_GESTOR, GESTOR
-                HAVING SUM(VL_PATRIM_LIQ) > 0
+                GROUP BY cpf_cnpj_gestor, gestor
+                HAVING SUM(vl_patrim_liq) > 0
                 ORDER BY patrimonio_total_sob_gestao DESC
             """)
             
@@ -577,8 +577,8 @@ class RepositoryScreeningCvm:
             for row in result:
                 ranking_data.append({
                     'ranking': row.ranking,
-                    'cpf_cnpj_gestor': row.CPF_CNPJ_GESTOR,
-                    'gestor': row.GESTOR,
+                    'cpf_cnpj_gestor': row.cpf_cnpj_gestor,
+                    'gestor': row.gestor,
                     'numero_veiculos': row.numero_veiculos,
                     'patrimonio_total_sob_gestao': float(row.patrimonio_total_sob_gestao) if row.patrimonio_total_sob_gestao else 0
                 })
