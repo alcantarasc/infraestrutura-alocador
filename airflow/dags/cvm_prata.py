@@ -36,7 +36,7 @@ def salvar_ranking_gestores():
     """Salva o ranking de gestores na tabela RANKING_GESTORES"""
     engine = create_engine(f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
     
-    with engine.connect() as connection:
+    with engine.begin() as connection:
         # Limpa dados antigos
         connection.execute(text("DELETE FROM RANKING_GESTORES"))
         
@@ -86,7 +86,6 @@ def salvar_ranking_gestores():
         """)
         
         connection.execute(query)
-        connection.commit()
         logger.info("Ranking de gestores salvo com sucesso")
 
 def salvar_ranking_movimentacao():
@@ -102,7 +101,7 @@ def salvar_ranking_movimentacao():
     # Calcula a data de início (31 dias antes)
     data_inicio = ultima_data - timedelta(days=31)
     
-    with engine.connect() as connection:
+    with engine.begin() as connection:
         # Limpa dados antigos
         connection.execute(text("DELETE FROM RANKING_MOVIMENTACAO"))
         
@@ -141,18 +140,17 @@ def salvar_ranking_movimentacao():
             'data_inicio': data_inicio,
             'data_fim': ultima_data
         })
-        connection.commit()
         logger.info(f"Ranking de movimentação salvo com sucesso para o período {data_inicio} a {ultima_data}")
 
 def salvar_datas_informacao_diaria():
     """Salva as datas disponíveis na tabela DATAS_INFORMACAO_DIARIA"""
     engine = create_engine(f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
     
-    with engine.connect() as connection:
+    with engine.begin() as connection:
         # Limpa dados antigos
         connection.execute(text("DELETE FROM DATAS_INFORMACAO_DIARIA"))
         
-        # Query para obter as datas distintas
+        # Query para obter as datas distintas usando INSERT ... ON CONFLICT DO NOTHING
         query = text("""
             INSERT INTO DATAS_INFORMACAO_DIARIA (dt_comptc)
             SELECT DISTINCT dt_comptc 
@@ -161,7 +159,6 @@ def salvar_datas_informacao_diaria():
         """)
         
         connection.execute(query)
-        connection.commit()
         logger.info("Datas de informação diária salvas com sucesso")
 
 # Definindo as tasks
