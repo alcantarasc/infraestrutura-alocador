@@ -17,7 +17,7 @@ DATABASE_PORT = Variable.get("DATABASE_PORT")
 dag = DAG(
     dag_id='cvm_prata',
     description='DAG para salvar resultados das consultas em tabelas específicas',
-    schedule_interval='0 2 * * *',  # Executa diariamente às 2h da manhã
+    schedule='0 2 * * *',  # Executa diariamente às 2h da manhã
     start_date=date(2024, 1, 1),
     catchup=False
 )
