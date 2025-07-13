@@ -124,51 +124,55 @@ class RepositoryScreeningCvm:
     
     def datas_informacao_diaria() -> List[date]:
         """
-        Retorna as datas disponíveis na tabela INFORMACAO_DIARIA.
+        Retorna as datas disponíveis na tabela DATAS_INFORMACAO_DIARIA.
         """
         with DBConnectionHandler() as db:
-            query = text("SELECT DISTINCT dt_comptc FROM INFORMACAO_DIARIA ORDER BY dt_comptc DESC")
+            query = text("SELECT dt_comptc FROM DATAS_INFORMACAO_DIARIA ORDER BY dt_comptc DESC")
             result = db.session.execute(query)
             return [row.dt_comptc for row in result]
             
-    def ranking_movimentacao_veiculos(data_inicio: date, data_fim: date):
+    def ranking_movimentacao_veiculos(data_inicio: date = None, data_fim: date = None):
         """
         Retorna o ranking de movimentação de veículos baseado no fluxo líquido (resgates - aportes).
         
         Args:
-            data_inicio: Data de início
-            data_fim: Data de fim
+            data_inicio: Data de início (opcional)
+            data_fim: Data de fim (opcional)
         """
         with DBConnectionHandler() as db:
-            query = text("""
+            # Construindo a condição de filtro por data
+            data_filter = ""
+            params = {}
+            
+            if data_inicio is not None and data_fim is not None:
+                data_filter = "WHERE dt_comptc BETWEEN :data_inicio AND :data_fim"
+                params['data_inicio'] = data_inicio
+                params['data_fim'] = data_fim
+            elif data_inicio is not None:
+                data_filter = "WHERE dt_comptc >= :data_inicio"
+                params['data_inicio'] = data_inicio
+            elif data_fim is not None:
+                data_filter = "WHERE dt_comptc <= :data_fim"
+                params['data_fim'] = data_fim
+            
+            query = text(f"""
                 SELECT 
-                    i.cnpj_fundo_classe,
-                    i.tp_fundo_classe,
-                    i.dt_comptc,
-                    r.denominacao_social,
-                    i.vl_total,
-                    SUM(i.resg_dia) as total_resgates,
-                    SUM(i.captc_dia) as total_aportes,
-                    SUM(i.captc_dia - i.resg_dia) as fluxo_liquido,
-                    CASE 
-                        WHEN i.vl_total > 0 THEN 
-                            (SUM(i.captc_dia - i.resg_dia) / i.vl_total) * 100
-                        ELSE 0 
-                    END as percentual_fluxo_liquido,
-                    ROW_NUMBER() OVER (ORDER BY SUM(i.captc_dia - i.resg_dia) DESC) as ranking
-                FROM INFORMACAO_DIARIA i
-                LEFT JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
-                WHERE i.dt_comptc BETWEEN :data_inicio AND :data_fim
-                  AND (i.resg_dia IS NOT NULL OR i.captc_dia IS NOT NULL)
-                GROUP BY i.cnpj_fundo_classe, i.tp_fundo_classe, r.denominacao_social, i.dt_comptc, i.vl_total
-                HAVING SUM(i.captc_dia - i.resg_dia) != 0
-                ORDER BY fluxo_liquido DESC
+                    cnpj_fundo_classe,
+                    tp_fundo_classe,
+                    dt_comptc,
+                    denominacao_social,
+                    vl_total,
+                    total_resgates,
+                    total_aportes,
+                    fluxo_liquido,
+                    percentual_fluxo_liquido,
+                    ranking
+                FROM RANKING_MOVIMENTACAO
+                {data_filter}
+                ORDER BY ranking
             """)
             
-            result = db.session.execute(query, {
-                'data_inicio': data_inicio,
-                'data_fim': data_fim
-            })
+            result = db.session.execute(query, params)
             
             # Convertendo para lista de dicionários para facilitar o uso
             ranking_data = []
@@ -519,55 +523,21 @@ class RepositoryScreeningCvm:
     def pega_rank_gestores_por_patrimonio_sob_gestao():
         """
         Retorna o ranking dos gestores ordenados por patrimônio sob gestão.
-        Para cada gestor, conta o número de veículos e soma o patrimônio líquido
-        da última posição disponível de cada veículo na INFORMACAO_DIARIA.
-        Considera apenas registros que contenham 'CLASSES' em tp_fundo_classe.
+        Dados obtidos da tabela RANKING_GESTORES.
         
         Returns:
             List[dict]: Lista de dicionários com ranking dos gestores
         """
         with DBConnectionHandler() as db:
             query = text("""
-                WITH ultima_data_por_veiculo AS (
-                    SELECT 
-                        cnpj_fundo_classe,
-                        tp_fundo_classe,
-                        MAX(dt_comptc) as ultima_data
-                    FROM INFORMACAO_DIARIA
-                    WHERE vl_patrim_liq IS NOT NULL
-                      AND vl_patrim_liq > 0
-                      AND tp_fundo_classe LIKE '%CLASSES%'
-                    GROUP BY cnpj_fundo_classe, tp_fundo_classe
-                ),
-                patrimonio_veiculos AS (
-                    SELECT 
-                        r.cpf_cnpj_gestor,
-                        r.gestor,
-                        i.cnpj_fundo_classe,
-                        i.tp_fundo_classe,
-                        i.vl_patrim_liq
-                    FROM INFORMACAO_DIARIA i
-                    INNER JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
-                    INNER JOIN ultima_data_por_veiculo u ON i.cnpj_fundo_classe = u.cnpj_fundo_classe 
-                        AND i.tp_fundo_classe = u.tp_fundo_classe 
-                        AND i.dt_comptc = u.ultima_data
-                    WHERE r.cpf_cnpj_gestor IS NOT NULL
-                      AND r.gestor IS NOT NULL
-                      AND r.gestor != ''
-                      AND i.vl_patrim_liq IS NOT NULL
-                      AND i.vl_patrim_liq > 0
-                      AND i.tp_fundo_classe LIKE '%CLASSES%'
-                )
                 SELECT 
                     cpf_cnpj_gestor,
                     gestor,
-                    COUNT(DISTINCT CONCAT(cnpj_fundo_classe, tp_fundo_classe)) as numero_veiculos,
-                    SUM(vl_patrim_liq) as patrimonio_total_sob_gestao,
-                    ROW_NUMBER() OVER (ORDER BY SUM(vl_patrim_liq) DESC) as ranking
-                FROM patrimonio_veiculos
-                GROUP BY cpf_cnpj_gestor, gestor
-                HAVING SUM(vl_patrim_liq) > 0
-                ORDER BY patrimonio_total_sob_gestao DESC
+                    numero_veiculos,
+                    patrimonio_total_sob_gestao,
+                    ranking
+                FROM RANKING_GESTORES
+                ORDER BY ranking
             """)
             
             result = db.session.execute(query)

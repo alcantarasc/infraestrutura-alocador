@@ -411,6 +411,50 @@ def create_tables():
     );
     CREATE INDEX IF NOT EXISTS idx_codigo_cvm_subclasse ON REGISTRO_SUBCLASSE (CODIGO_CVM);
     """
+
+    # Tabelas para armazenar resultados das consultas
+    ranking_gestores_sql = """
+    CREATE TABLE IF NOT EXISTS RANKING_GESTORES (
+        ID_RANKING_GESTORES BIGSERIAL PRIMARY KEY,
+        CPF_CNPJ_GESTOR VARCHAR(20),
+        GESTOR VARCHAR(500),
+        NUMERO_VEICULOS INTEGER,
+        PATRIMONIO_TOTAL_SOB_GESTAO NUMERIC(24, 2),
+        RANKING INTEGER,
+        DT_CRIACAO TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_ranking_gestores_ranking ON RANKING_GESTORES (RANKING);
+    CREATE INDEX IF NOT EXISTS idx_ranking_gestores_cpf_cnpj ON RANKING_GESTORES (CPF_CNPJ_GESTOR);
+    """
+
+    ranking_movimentacao_sql = """
+    CREATE TABLE IF NOT EXISTS RANKING_MOVIMENTACAO (
+        ID_RANKING_MOVIMENTACAO BIGSERIAL PRIMARY KEY,
+        CNPJ_FUNDO_CLASSE VARCHAR(20),
+        TP_FUNDO_CLASSE VARCHAR(15),
+        DT_COMPTC DATE,
+        DENOMINACAO_SOCIAL VARCHAR(500),
+        VL_TOTAL NUMERIC(17, 2),
+        TOTAL_RESGATES NUMERIC(17, 2),
+        TOTAL_APORTES NUMERIC(17, 2),
+        FLUXO_LIQUIDO NUMERIC(17, 2),
+        PERCENTUAL_FLUXO_LIQUIDO NUMERIC(10, 2),
+        RANKING INTEGER,
+        DT_CRIACAO TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_ranking_movimentacao_ranking ON RANKING_MOVIMENTACAO (RANKING);
+    CREATE INDEX IF NOT EXISTS idx_ranking_movimentacao_cnpj ON RANKING_MOVIMENTACAO (CNPJ_FUNDO_CLASSE);
+    CREATE INDEX IF NOT EXISTS idx_ranking_movimentacao_dt_comptc ON RANKING_MOVIMENTACAO (DT_COMPTC);
+    """
+
+    datas_informacao_diaria_sql = """
+    CREATE TABLE IF NOT EXISTS DATAS_INFORMACAO_DIARIA (
+        ID_DATAS_INFORMACAO_DIARIA BIGSERIAL PRIMARY KEY,
+        DT_COMPTC DATE UNIQUE NOT NULL,
+        DT_CRIACAO TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_datas_informacao_diaria_dt_comptc ON DATAS_INFORMACAO_DIARIA (DT_COMPTC);
+    """
     
 
     with engine.connect() as connection:
@@ -427,6 +471,9 @@ def create_tables():
         connection.execute(create_registro_fundo_sql)
         connection.execute(registro_classe_sql)
         connection.execute(registro_subclasse_sql)
+        connection.execute(ranking_gestores_sql)
+        connection.execute(ranking_movimentacao_sql)
+        connection.execute(datas_informacao_diaria_sql)
 
 create_tables_task = PythonOperator(
     task_id='cria_tabelas_cvm',
