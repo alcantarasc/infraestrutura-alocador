@@ -2,7 +2,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine, text
 from airflow.models import Variable
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 import logging
 
 # Set up logging
@@ -18,7 +18,7 @@ dag = DAG(
     dag_id='cvm_prata',
     description='DAG para salvar resultados das consultas em tabelas específicas',
     schedule='0 2 * * *',  # Executa diariamente às 2h da manhã
-    start_date=date(2024, 1, 1),
+    start_date=datetime(2024, 1, 1),
     catchup=False
 )
 
