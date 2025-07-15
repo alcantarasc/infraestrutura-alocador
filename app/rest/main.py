@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, Query
 from datetime import date, timedelta
 from repository.repository_screening_cvm import RepositoryScreeningCvm
+from typing import Optional
 
 from interface_websocket import WebsocketConnectionManager
 from settings import FIREBASE_CREDENTIAL_FILE
@@ -51,14 +52,27 @@ async def websocket_endpoint(websocket: WebSocket, user: dict = Depends(get_user
         manager.disconnect(websocket)
 
 @app.get("/api/v1/ranking-movimentacao")
-def get_ranking_movimentacao_ranges():
+def get_ranking_movimentacao_ranges(
+    page: Optional[int] = Query(0, ge=0, description="Número da página (começando em 0)"),
+    page_size: Optional[int] = Query(25, ge=1, le=100, description="Tamanho da página"),
+    periodo: Optional[str] = Query("dia", description="Período: dia, 7_dias, 31_dias")
+):
     try:
-        ranking_dia = RepositoryScreeningCvm.ranking_movimentacao_veiculos()
-                
+        # Calcula offset baseado na página
+        offset = page * page_size
+        
+        ranking_data = RepositoryScreeningCvm.ranking_movimentacao_veiculos_paginado(
+            offset=offset, 
+            limit=page_size,
+            periodo=periodo
+        )
+        
         return {
-            "dia": ranking_dia,
-            "7_dias": [],
-            "31_dias": []
+            "data": ranking_data["data"],
+            "total": ranking_data["total"],
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (ranking_data["total"] + page_size - 1) // page_size
         }
     except Exception as e:
         print(f"Erro na busca: {str(e)}")
@@ -70,6 +84,21 @@ def get_ranking_gestores_por_patrimonio_sob_gestao():
     try:
         ranking = RepositoryScreeningCvm.pega_rank_gestores_por_patrimonio_sob_gestao()
         return {"ranking": ranking}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/v1/lamina-fundo")
+def get_lamina_fundo(
+    cnpj_fundo_classe: str = Query(..., description="CNPJ do fundo"),
+    tp_fundo_classe: str = Query(..., description="Tipo do fundo")
+):
+    """Retorna a lâmina do fundo com série de cotas e composição da carteira"""
+    try:
+        lamina = RepositoryScreeningCvm.lamina_fundo(
+            cnpj_fundo_classe=cnpj_fundo_classe,
+            tp_fundo_classe=tp_fundo_classe
+        )
+        return lamina
     except Exception as e:
         return {"error": str(e)}
 

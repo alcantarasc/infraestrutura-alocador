@@ -2,6 +2,7 @@
   "name": "boilerplate-react",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:8000",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -17,7 +18,9 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.0.1",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "echarts": "^5.4.3",
+    "echarts-for-react": "^3.0.2"
   },
   "scripts": {
     "start": "react-scripts start",

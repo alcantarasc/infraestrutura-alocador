@@ -1,72 +1,224 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography
-} from '@mui/material';
+  MaterialReactTable,
+  useMaterialReactTable,
+} from 'material-react-table';
+import { Box, Typography, Chip } from '@mui/material';
+import { formatCurrency, formatPercentage } from '../../utils/formatters';
+import LaminaFundo from '../LaminaFundo';
 
-// Funções utilitárias para formatação
-const formatMoney = (value) =>
-  value?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const DataGridRankingMovimentacoes = ({ periodo, title }) => {
+  // Dados e estados de fetch
+  const [data, setData] = useState([]);
+  const [isError, setIsError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefetching, setIsRefetching] = useState(false);
+  const [rowCount, setRowCount] = useState(0);
 
-const formatPercent = (value) =>
-  (value !== undefined && value !== null)
-    ? `${value.toFixed(2)}%`
-    : '';
+  // Estados da tabela
+  const [columnFilters, setColumnFilters] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [sorting, setSorting] = useState([]);
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 25,
+  });
 
-const DataGridRankingMovimentacoes = ({ data, title }) => {
-  if (!data || data.length === 0) {
-    return (
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="h6" gutterBottom>{title}</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Nenhum dado disponível
-        </Typography>
-      </Paper>
-    );
-  }
+  // Estados do modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedFundo, setSelectedFundo] = useState(null);
+
+  // Função para lidar com clique na linha
+  const handleRowClick = (row) => {
+    const { cnpj_fundo_classe, tp_fundo_classe } = row.original;
+    setSelectedFundo({ cnpj_fundo_classe, tp_fundo_classe });
+    setModalOpen(true);
+  };
+
+  // Fetch server-side
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!data.length) setIsLoading(true);
+      else setIsRefetching(true);
+
+      const url = new URL('/api/v1/ranking-movimentacao', window.location.origin);
+      url.searchParams.set('page', pagination.pageIndex);
+      url.searchParams.set('page_size', pagination.pageSize);
+      url.searchParams.set('periodo', periodo);
+      url.searchParams.set('filters', JSON.stringify(columnFilters ?? []));
+      url.searchParams.set('globalFilter', globalFilter ?? '');
+      url.searchParams.set('sorting', JSON.stringify(sorting ?? []));
+
+      try {
+        const response = await fetch(url.href);
+        const result = await response.json();
+        if (result.error) throw new Error(result.error);
+        setData(result.data);
+        setRowCount(result.total);
+        setIsError(false);
+      } catch (error) {
+        setIsError(true);
+        setData([]);
+        setRowCount(0);
+      }
+      setIsLoading(false);
+      setIsRefetching(false);
+    };
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    columnFilters,
+    globalFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+    sorting,
+    periodo,
+  ]);
+
+  // Definição das colunas
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: 'ranking',
+        header: 'Ranking',
+        size: 80,
+      },
+      {
+        accessorKey: 'denominacao_social',
+        header: 'Denominação Social',
+        size: 300,
+      },
+      {
+        accessorKey: 'cnpj_fundo_classe',
+        header: 'CNPJ',
+        size: 180,
+      },
+      {
+        accessorKey: 'tp_fundo_classe',
+        header: 'Tipo Fundo',
+        size: 120,
+      },
+      {
+        accessorKey: 'vl_total',
+        header: 'Patrimônio Total',
+        size: 150,
+        Cell: ({ cell }) => formatCurrency(cell.getValue()),
+      },
+      {
+        accessorKey: 'total_aportes',
+        header: 'Total Aportes',
+        size: 140,
+        Cell: ({ cell }) => formatCurrency(cell.getValue()),
+      },
+      {
+        accessorKey: 'total_resgates',
+        header: 'Total Resgates',
+        size: 140,
+        Cell: ({ cell }) => formatCurrency(cell.getValue()),
+      },
+      {
+        accessorKey: 'fluxo_liquido',
+        header: 'Fluxo Líquido',
+        size: 140,
+        Cell: ({ cell }) => (
+          <Chip
+            label={formatCurrency(cell.getValue())}
+            color={cell.getValue() >= 0 ? 'success' : 'error'}
+            size="small"
+            variant="outlined"
+          />
+        ),
+      },
+      {
+        accessorKey: 'percentual_fluxo_liquido',
+        header: '% Fluxo Líquido',
+        size: 140,
+        Cell: ({ cell }) => (
+          <Chip
+            label={formatPercentage(cell.getValue())}
+            color={cell.getValue() >= 0 ? 'success' : 'error'}
+            size="small"
+            variant="outlined"
+          />
+        ),
+      },
+      {
+        accessorKey: 'dt_comptc',
+        header: 'Data',
+        size: 120,
+        Cell: ({ cell }) =>
+          cell.getValue()
+            ? new Date(cell.getValue()).toLocaleDateString('pt-BR')
+            : '',
+      },
+    ],
+    []
+  );
+
+  // Instância da tabela MRT
+  const table = useMaterialReactTable({
+    columns,
+    data,
+    enableRowSelection: false,
+    manualFiltering: true,
+    manualPagination: true,
+    manualSorting: true,
+    getRowId: (row) => `${row.cnpj_fundo_classe}-${row.tp_fundo_classe}`,
+    initialState: { showColumnFilters: true },
+    muiToolbarAlertBannerProps: isError
+      ? {
+          color: 'error',
+          children: 'Erro ao carregar dados',
+        }
+      : undefined,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    rowCount,
+    state: {
+      columnFilters,
+      globalFilter,
+      isLoading,
+      pagination,
+      showAlertBanner: isError,
+      showProgressBars: isRefetching,
+      sorting,
+    },
+    muiTablePaperProps: {
+      sx: { minHeight: 600 },
+    },
+    muiPaginationProps: {
+      rowsPerPageOptions: [10, 25, 50, 100],
+      labelRowsPerPage: 'Linhas por página:',
+    },
+    // Adicionando o handler de clique na linha
+    muiTableBodyRowProps: ({ row }) => ({
+      onClick: () => handleRowClick(row),
+      sx: {
+        cursor: 'pointer',
+        '&:hover': {
+          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+        },
+      },
+    }),
+  });
 
   return (
-    <Paper sx={{ p: 2, mb: 2 }}>
-      <Typography variant="h6" gutterBottom>{title}</Typography>
-      <TableContainer>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Ranking</TableCell>
-              <TableCell>CNPJ</TableCell>
-              <TableCell>Tipo Fundo</TableCell>
-              <TableCell>Denominação Social</TableCell>
-              <TableCell align="right">Total Resgates</TableCell>
-              <TableCell align="right">Total Aportes</TableCell>
-              <TableCell align="right">Fluxo Líquido</TableCell>
-              <TableCell align="right">% Fluxo Líquido</TableCell>
-              <TableCell align="right">Patrimônio Total</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data.map((row) => (
-              <TableRow key={`${row.cnpj_fundo_classe}-${row.tp_fundo_classe}`}>
-                <TableCell>{row.ranking}</TableCell>
-                <TableCell>{row.cnpj_fundo_classe}</TableCell>
-                <TableCell>{row.tp_fundo_classe}</TableCell>
-                <TableCell>{row.denominacao_social || '-'}</TableCell>
-                <TableCell align="right">{formatMoney(row.total_resgates)}</TableCell>
-                <TableCell align="right">{formatMoney(row.total_aportes)}</TableCell>
-                <TableCell align="right">{formatMoney(row.fluxo_liquido)}</TableCell>
-                <TableCell align="right">{formatPercent(row.percentual_fluxo_liquido)}</TableCell>
-                <TableCell align="right">{formatMoney(row.vl_total)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Paper>
+    <Box sx={{ width: '100%', mb: 4 }}>
+      <Typography variant="h6" gutterBottom>
+        {title}
+      </Typography>
+      <MaterialReactTable table={table} />
+      
+      {/* Modal da Lâmina do Fundo */}
+      <LaminaFundo
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        cnpj_fundo_classe={selectedFundo?.cnpj_fundo_classe}
+        tp_fundo_classe={selectedFundo?.tp_fundo_classe}
+      />
+    </Box>
   );
 };
 

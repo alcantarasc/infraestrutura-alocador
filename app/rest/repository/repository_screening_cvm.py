@@ -192,7 +192,79 @@ class RepositoryScreeningCvm:
             
             return ranking_data
         
-    def composicao_carteira(cnpj_fundo_classe: List[str], tp_fundo_classe: List[str], data_inicio: date, data_fim: date):
+    def ranking_movimentacao_veiculos_paginado(offset: int = 0, limit: int = 25, periodo: str = "dia"):
+        """
+        Retorna o ranking de movimentação de veículos com paginação.
+        
+        Args:
+            offset: Número de registros para pular
+            limit: Número máximo de registros a retornar
+            periodo: Período do ranking (dia, 7_dias, 31_dias)
+        """
+        with DBConnectionHandler() as db:
+            # Determina a data baseada no período
+            if periodo == "dia":
+                data_filter = "WHERE dt_comptc = (SELECT MAX(dt_comptc) FROM RANKING_MOVIMENTACAO)"
+            elif periodo == "7_dias":
+                data_filter = "WHERE dt_comptc >= (SELECT MAX(dt_comptc) FROM RANKING_MOVIMENTACAO) - INTERVAL '7 days'"
+            elif periodo == "31_dias":
+                data_filter = "WHERE dt_comptc >= (SELECT MAX(dt_comptc) FROM RANKING_MOVIMENTACAO) - INTERVAL '31 days'"
+            else:
+                data_filter = "WHERE dt_comptc = (SELECT MAX(dt_comptc) FROM RANKING_MOVIMENTACAO)"
+            
+            # Query para contar total de registros
+            count_query = text(f"""
+                SELECT COUNT(*) as total
+                FROM RANKING_MOVIMENTACAO
+                {data_filter}
+            """)
+            
+            count_result = db.session.execute(count_query)
+            total = count_result.fetchone().total
+            
+            # Query principal com paginação
+            query = text(f"""
+                SELECT 
+                    cnpj_fundo_classe,
+                    tp_fundo_classe,
+                    dt_comptc,
+                    denominacao_social,
+                    vl_total,
+                    total_resgates,
+                    total_aportes,
+                    fluxo_liquido,
+                    percentual_fluxo_liquido,
+                    ranking
+                FROM RANKING_MOVIMENTACAO
+                {data_filter}
+                ORDER BY ranking
+                LIMIT :limit OFFSET :offset
+            """)
+            
+            result = db.session.execute(query, {"limit": limit, "offset": offset})
+            
+            # Convertendo para lista de dicionários
+            ranking_data = []
+            for row in result:
+                ranking_data.append({
+                    'ranking': row.ranking,
+                    'cnpj_fundo_classe': row.cnpj_fundo_classe,
+                    'tp_fundo_classe': row.tp_fundo_classe,
+                    'denominacao_social': row.denominacao_social,
+                    'total_resgates': float(row.total_resgates) if row.total_resgates else 0,
+                    'total_aportes': float(row.total_aportes) if row.total_aportes else 0,
+                    'fluxo_liquido': float(row.fluxo_liquido) if row.fluxo_liquido else 0,
+                    'percentual_fluxo_liquido': float(row.percentual_fluxo_liquido) if row.percentual_fluxo_liquido else 0,
+                    'dt_comptc': row.dt_comptc,
+                    'vl_total': float(row.vl_total) if row.vl_total else 0
+                })
+            
+            return {
+                "data": ranking_data,
+                "total": total
+            }
+        
+    def composicao_carteira(cnpj_fundo_classe: List[str], tp_fundo_classe: List[str]):
         """
         Retorna a composição da carteira de um veículo específico. 
         tem algumas tabelas pra consultar: 
@@ -227,7 +299,7 @@ class RepositoryScreeningCvm:
                         qt_pos_final,
                         'TITULO_PUBLICO_SELIC' as origem_tabela
                     FROM composicao_carteira_titulo_publico_selic
-                    WHERE dt_comptc BETWEEN :data_inicio AND :data_fim
+                    WHERE 1=1
                     {cnpj_condition}
                     {tp_fundo_condition}
                     
@@ -247,7 +319,7 @@ class RepositoryScreeningCvm:
                         qt_pos_final,
                         'DEPOSITO_PRAZO_IF' as origem_tabela
                     FROM composicao_carteira_deposito_prazo_if
-                    WHERE dt_comptc BETWEEN :data_inicio AND :data_fim
+                    WHERE 1=1
                     {cnpj_condition}
                     {tp_fundo_condition}
                     
@@ -267,7 +339,7 @@ class RepositoryScreeningCvm:
                         qt_pos_final,
                         'FUNDOS' as origem_tabela
                     FROM composicao_carteira_fundos
-                    WHERE dt_comptc BETWEEN :data_inicio AND :data_fim
+                    WHERE 1=1
                     {cnpj_condition}
                     {tp_fundo_condition}
                     
@@ -287,7 +359,7 @@ class RepositoryScreeningCvm:
                         qt_pos_final,
                         'DEMAIS_CODIFICADOS' as origem_tabela
                     FROM composicao_carteira_demais_codificados
-                    WHERE dt_comptc BETWEEN :data_inicio AND :data_fim
+                    WHERE 1=1
                     {cnpj_condition}
                     {tp_fundo_condition}
                     
@@ -307,7 +379,7 @@ class RepositoryScreeningCvm:
                         qt_pos_final,
                         'INVESTIMENTO_EXTERIOR' as origem_tabela
                     FROM composicao_carteira_investimento_exterior
-                    WHERE dt_comptc BETWEEN :data_inicio AND :data_fim
+                    WHERE 1=1
                     {cnpj_condition}
                     {tp_fundo_condition}
                     
@@ -327,7 +399,7 @@ class RepositoryScreeningCvm:
                         qt_pos_final,
                         'SWAPS' as origem_tabela
                     FROM composicao_carteira_swaps
-                    WHERE dt_comptc BETWEEN :data_inicio AND :data_fim
+                    WHERE 1=1
                     {cnpj_condition}
                     {tp_fundo_condition}
                     
@@ -347,7 +419,7 @@ class RepositoryScreeningCvm:
                         qt_pos_final,
                         'NAO_CODIFICADOS' as origem_tabela
                     FROM composicao_carteira_nao_codificados
-                    WHERE dt_comptc BETWEEN :data_inicio AND :data_fim
+                    WHERE 1=1
                     {cnpj_condition}
                     {tp_fundo_condition}
                     
@@ -367,7 +439,7 @@ class RepositoryScreeningCvm:
                         qt_pos_final,
                         'TITULO_PRIVADO' as origem_tabela
                     FROM composicao_carteira_titulo_privado
-                    WHERE dt_comptc BETWEEN :data_inicio AND :data_fim
+                    WHERE 1=1
                     {cnpj_condition}
                     {tp_fundo_condition}
                 ),
@@ -418,14 +490,11 @@ class RepositoryScreeningCvm:
                         ORDER BY vl_merc_pos_final DESC
                     ) as ranking_posicao
                 FROM composicao_com_variacao
-                ORDER BY cnpj_fundo_classe, tp_fundo_classe, dt_comptc, vl_merc_pos_final DESC
+                ORDER BY dt_comptc DESC
             """)
             
             # Preparando parâmetros
-            params = {
-                'data_inicio': data_inicio,
-                'data_fim': data_fim
-            }
+            params = {}
             
             if len(cnpj_fundo_classe) > 0:
                 params['cnpj_fundo_classe'] = tuple(cnpj_fundo_classe)
@@ -489,7 +558,7 @@ class RepositoryScreeningCvm:
                 WHERE 1=1
                   {cnpj_condition}
                   {tp_fundo_condition}
-                ORDER BY i.cnpj_fundo_classe, i.tp_fundo_classe, i.dt_comptc DESC
+                ORDER BY i.dt_comptc
             """)
             
             # Preparando parâmetros
@@ -554,3 +623,40 @@ class RepositoryScreeningCvm:
                 })
             
             return ranking_data
+
+    def lamina_fundo(cnpj_fundo_classe: str, tp_fundo_classe: str):
+        """
+        Retorna a lâmina do fundo com série de cotas e composição da carteira.
+        
+        Args:
+            cnpj_fundo_classe: CNPJ do fundo
+            tp_fundo_classe: Tipo do fundo
+            
+        Returns:
+            dict: Dicionário com série de cotas e composição da carteira
+        """
+        try:
+            # Obtém a série de cotas do veículo
+            serie_veiculo = RepositoryScreeningCvm.pega_serie_veiculo(
+                cnpj_fundo_classe=[cnpj_fundo_classe], 
+                tp_fundo_classe=[tp_fundo_classe]
+            )
+            
+            # Obtém a composição da carteira
+            composicao_carteira = RepositoryScreeningCvm.composicao_carteira(
+                cnpj_fundo_classe=[cnpj_fundo_classe], 
+                tp_fundo_classe=[tp_fundo_classe]
+            )
+            
+            return {
+                "serie_veiculo": serie_veiculo,
+                "composicao_carteira": composicao_carteira
+            }
+            
+        except Exception as e:
+            print(f"Erro ao obter lâmina do fundo: {str(e)}")
+            return {
+                "serie_veiculo": [],
+                "composicao_carteira": [],
+                "error": str(e)
+            }
