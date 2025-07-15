@@ -1,79 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Typography,
-  CircularProgress,
-  Alert
+  Tabs,
+  Tab,
+  Paper
 } from "@mui/material";
 import DataGridRankingMovimentacoes from '../components/tables/DataGridRankingMovimentacoes';
 
 function Ranking() {
-  const [rankingData, setRankingData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [selectedPeriod, setSelectedPeriod] = useState('dia');
 
-  useEffect(() => {
-    const fetchRankingData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch('/api/v1/ranking-movimentacao');
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setRankingData(data);
-        console.log(data);
-      } catch (err) {
-        console.error('Erro ao buscar dados do ranking:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const handlePeriodChange = (event, newValue) => {
+    setSelectedPeriod(newValue);
+  };
 
-    fetchRankingData();
-  }, []);
-
-  if (loading) {
-    return (
-      <Box sx={{ 
-        flex: 1, 
-        display: 'flex', 
-        flexDirection: 'column', 
-        minWidth: 0, 
-        p: 4, 
-        overflow: 'auto',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <CircularProgress />
-        <Typography variant="body1" sx={{ mt: 2 }}>
-          Carregando dados do ranking...
-        </Typography>
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ 
-        flex: 1, 
-        display: 'flex', 
-        flexDirection: 'column', 
-        minWidth: 0, 
-        p: 4, 
-        overflow: 'auto'
-      }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Erro ao carregar dados: {error}
-        </Alert>
-      </Box>
-    );
-  }
+  const periods = [
+    { value: 'dia', label: 'Dia' },
+    { value: '7_dias', label: '7 Dias' },
+    { value: '31_dias', label: '31 Dias' }
+  ];
 
   return (
     <Box sx={{ 
@@ -88,24 +34,28 @@ function Ranking() {
         Ranking de Movimentação
       </Typography>
       
-      {rankingData && (
-        <>
-          <DataGridRankingMovimentacoes 
-            data={rankingData.dia} 
-            title="Ranking - Dia" 
-          />
-          
-          <DataGridRankingMovimentacoes 
-            data={rankingData['7_dias']} 
-            title="Ranking - 7 Dias" 
-          />
-          
-          <DataGridRankingMovimentacoes 
-            data={rankingData['31_dias']} 
-            title="Ranking - 31 Dias" 
-          />
-        </>
-      )}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={selectedPeriod}
+          onChange={handlePeriodChange}
+          indicatorColor="primary"
+          textColor="primary"
+          variant="fullWidth"
+        >
+          {periods.map((period) => (
+            <Tab
+              key={period.value}
+              value={period.value}
+              label={period.label}
+            />
+          ))}
+        </Tabs>
+      </Paper>
+      
+      <DataGridRankingMovimentacoes 
+        periodo={selectedPeriod}
+        title={`Ranking - ${periods.find(p => p.value === selectedPeriod)?.label}`}
+      />
     </Box>
   );
 }

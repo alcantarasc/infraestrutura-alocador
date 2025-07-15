@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, Query
 from datetime import date, timedelta
 from repository.repository_screening_cvm import RepositoryScreeningCvm
+from typing import Optional
 
 from interface_websocket import WebsocketConnectionManager
 from settings import FIREBASE_CREDENTIAL_FILE
@@ -50,68 +51,54 @@ async def websocket_endpoint(websocket: WebSocket, user: dict = Depends(get_user
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-
-
 @app.get("/api/v1/ranking-movimentacao")
-def get_ranking_movimentacao_ranges():
+def get_ranking_movimentacao_ranges(
+    page: Optional[int] = Query(0, ge=0, description="Número da página (começando em 0)"),
+    page_size: Optional[int] = Query(25, ge=1, le=100, description="Tamanho da página"),
+    periodo: Optional[str] = Query("dia", description="Período: dia, 7_dias, 31_dias")
+):
     try:
-        datas = RepositoryScreeningCvm.datas_informacao_diaria()
-
-        ranking_dia = RepositoryScreeningCvm.ranking_movimentacao_veiculos(datas[0], datas[0])
-                
+        # Calcula offset baseado na página
+        offset = page * page_size
+        
+        ranking_data = RepositoryScreeningCvm.ranking_movimentacao_veiculos_paginado(
+            offset=offset, 
+            limit=page_size,
+            periodo=periodo
+        )
+        
         return {
-            "dia": ranking_dia,
-            "7_dias": [],
-            "31_dias": []
+            "data": ranking_data["data"],
+            "total": ranking_data["total"],
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (ranking_data["total"] + page_size - 1) // page_size
         }
     except Exception as e:
         print(f"Erro na busca: {str(e)}")
-        return {"error": str(e)}
-
-@app.get("/api/v1/ranking-maiores-veiculos-acao")
-def get_ranking_maiores_veiculos_acao(data_inicio: str = None, data_fim: str = None):
-    """Retorna o ranking dos maiores veículos por aplicação em ações"""
-    try:
-        data_inicio_obj = None
-        data_fim_obj = None
-        
-        if data_inicio:
-            data_inicio_obj = date.fromisoformat(data_inicio)
-        if data_fim:
-            data_fim_obj = date.fromisoformat(data_fim)
-        
-        ranking = RepositoryScreeningCvm.maiores_veiculos_por_aplicacao_acao(data_inicio_obj, data_fim_obj)
-        return {"ranking": ranking}
-    except Exception as e:
         return {"error": str(e)}
 
 @app.get("/api/v1/ranking-gestores-por-patrimonio-sob-gestao")
 def get_ranking_gestores_por_patrimonio_sob_gestao():
     """Retorna o ranking dos gestores por patrimônio sob gestão"""
     try:
-        ranking = RepositoryScreeningCvm.ranking_gestores_por_patrimonio_sob_gestao()
+        ranking = RepositoryScreeningCvm.pega_rank_gestores_por_patrimonio_sob_gestao()
         return {"ranking": ranking}
     except Exception as e:
         return {"error": str(e)}
 
-
-@app.get("/api/v1/carteira-acao-veiculo")
-def get_carteira_acao_veiculo(cnpj_fundo_classe: str, tp_fundo_classe: str, 
-                              data_inicio: str = None, data_fim: str = None):
-    """Retorna a carteira de ações de um veículo específico"""
+@app.get("/api/v1/lamina-fundo")
+def get_lamina_fundo(
+    cnpj_fundo_classe: str = Query(..., description="CNPJ do fundo"),
+    tp_fundo_classe: str = Query(..., description="Tipo do fundo")
+):
+    """Retorna a lâmina do fundo com série de cotas e composição da carteira"""
     try:
-        data_inicio_obj = None
-        data_fim_obj = None
-        
-        if data_inicio:
-            data_inicio_obj = date.fromisoformat(data_inicio)
-        if data_fim:
-            data_fim_obj = date.fromisoformat(data_fim)
-        
-        carteira = RepositoryScreeningCvm.carteira_acao_veiculos(
-            cnpj_fundo_classe, tp_fundo_classe, data_inicio_obj, data_fim_obj
+        lamina = RepositoryScreeningCvm.lamina_fundo(
+            cnpj_fundo_classe=cnpj_fundo_classe,
+            tp_fundo_classe=tp_fundo_classe
         )
-        return {"carteira": carteira}
+        return lamina
     except Exception as e:
         return {"error": str(e)}
 
