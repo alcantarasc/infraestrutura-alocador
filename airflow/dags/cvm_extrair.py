@@ -144,7 +144,7 @@ def extrair_informacao_diaria(**kwargs):
     diretorio.mkdir(parents=True, exist_ok=True)
     
     total = len(urls)
-    for idx, url in enumerate(urls, 1):
+    for idx, url in enumerate([urls[0]], 1):
         logging.info(f"Baixando arquivo {idx}/{total}: {url}")
         dados = requests.get(url, stream=True)
         with tempfile.TemporaryDirectory() as tmpdirname:
