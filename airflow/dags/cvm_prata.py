@@ -104,79 +104,43 @@ def salvar_ranking_movimentacao():
     with engine.begin() as connection:
         # Limpa dados antigos
         connection.execute(text("DELETE FROM RANKING_MOVIMENTACAO"))
-        logger.info("Dados antigos removidos da tabela RANKING_MOVIMENTACAO")
         
-        # Query para calcular o ranking de movimentação agregado por fundo
-        ranking_query = text("""
-            WITH movimentacao_agregada AS (
-                SELECT 
-                    i.cnpj_fundo_classe,
-                    i.tp_fundo_classe,
-                    r.denominacao_social,
-                    SUM(COALESCE(i.captc_dia, 0)) as total_aportes_periodo,
-                    SUM(COALESCE(i.resg_dia, 0)) as total_resgates_periodo,
-                    SUM(COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) as fluxo_liquido_periodo,
-                    AVG(i.vl_total) as patrimonio_medio_periodo,
-                    COUNT(*) as dias_com_movimentacao
-                FROM INFORMACAO_DIARIA i
-                LEFT JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
-                WHERE i.dt_comptc BETWEEN :data_inicio AND :data_fim
-                  AND (i.captc_dia IS NOT NULL OR i.resg_dia IS NOT NULL)
-                  AND i.vl_total > 0
-                GROUP BY i.cnpj_fundo_classe, i.tp_fundo_classe, r.denominacao_social
-                HAVING SUM(COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) != 0
-            )
+        # Query para obter o ranking de movimentação
+        query = text("""
             INSERT INTO RANKING_MOVIMENTACAO (
-                cnpj_fundo_classe, tp_fundo_classe, denominacao_social, dt_comptc,
-                vl_total, total_resgates, total_aportes, fluxo_liquido, 
+                cnpj_fundo_classe, tp_fundo_classe, dt_comptc, denominacao_social,
+                vl_total, total_resgates, total_aportes, fluxo_liquido,
                 percentual_fluxo_liquido, ranking
             )
             SELECT 
-                cnpj_fundo_classe,
-                tp_fundo_classe,
-                denominacao_social,
-                :data_fim as dt_comptc,
-                patrimonio_medio_periodo as vl_total,
-                total_resgates_periodo as total_resgates,
-                total_aportes_periodo as total_aportes,
-                fluxo_liquido_periodo as fluxo_liquido,
+                i.cnpj_fundo_classe,
+                i.tp_fundo_classe,
+                i.dt_comptc,
+                r.denominacao_social,
+                i.vl_total,
+                SUM(i.resg_dia) as total_resgates,
+                SUM(i.captc_dia) as total_aportes,
+                SUM(i.captc_dia - i.resg_dia) as fluxo_liquido,
                 CASE 
-                    WHEN patrimonio_medio_periodo > 0 THEN 
-                        (fluxo_liquido_periodo / patrimonio_medio_periodo) * 100
+                    WHEN i.vl_total > 0 THEN 
+                        (SUM(i.captc_dia - i.resg_dia) / i.vl_total) * 100
                     ELSE 0 
                 END as percentual_fluxo_liquido,
-                ROW_NUMBER() OVER (ORDER BY ABS(fluxo_liquido_periodo) DESC) as ranking
-            FROM movimentacao_agregada
-            WHERE ABS(fluxo_liquido_periodo) > 0
-            ORDER BY ABS(fluxo_liquido_periodo) DESC
+                ROW_NUMBER() OVER (ORDER BY SUM(i.captc_dia - i.resg_dia) DESC) as ranking
+            FROM INFORMACAO_DIARIA i
+            LEFT JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
+            WHERE i.dt_comptc BETWEEN :data_inicio AND :data_fim
+              AND (i.resg_dia IS NOT NULL OR i.captc_dia IS NOT NULL)
+            GROUP BY i.cnpj_fundo_classe, i.tp_fundo_classe, r.denominacao_social, i.dt_comptc, i.vl_total
+            HAVING SUM(i.captc_dia - i.resg_dia) != 0
+            ORDER BY fluxo_liquido DESC
         """)
         
-        # Executa a query de ranking
-        result = connection.execute(ranking_query, {
+        connection.execute(query, {
             'data_inicio': data_inicio,
             'data_fim': ultima_data
         })
-        
-        # Conta os registros inseridos
-        total_inserted = result.rowcount
-        logger.info(f"Ranking de movimentação salvo com sucesso. Total de {total_inserted} fundos ranqueados para o período {data_inicio} a {ultima_data}")
-        
-        # Log dos top 10 fundos com maior movimentação
-        top_10_query = text("""
-            SELECT 
-                ranking,
-                denominacao_social,
-                fluxo_liquido,
-                percentual_fluxo_liquido
-            FROM RANKING_MOVIMENTACAO 
-            WHERE ranking <= 10
-            ORDER BY ranking
-        """)
-        
-        top_10_result = connection.execute(top_10_query)
-        logger.info("Top 10 fundos com maior movimentação:")
-        for row in top_10_result:
-            logger.info(f"#{row.ranking}: {row.denominacao_social} - R$ {row.fluxo_liquido:,.2f} ({row.percentual_fluxo_liquido:.2f}%)")
+        logger.info(f"Ranking de movimentação salvo com sucesso para o período {data_inicio} a {ultima_data}")
 
 def salvar_datas_informacao_diaria():
     """Salva as datas disponíveis na tabela DATAS_INFORMACAO_DIARIA"""
