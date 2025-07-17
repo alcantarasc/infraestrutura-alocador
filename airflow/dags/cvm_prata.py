@@ -105,34 +105,30 @@ def salvar_ranking_movimentacao():
         # Limpa dados antigos
         connection.execute(text("DELETE FROM RANKING_MOVIMENTACAO"))
         
-        # Query para obter o ranking de movimentação
+        # Query para obter o fluxo líquido por veículo único
         query = text("""
             INSERT INTO RANKING_MOVIMENTACAO (
-                cnpj_fundo_classe, tp_fundo_classe, dt_comptc, denominacao_social,
-                vl_total, total_resgates, total_aportes, fluxo_liquido,
-                percentual_fluxo_liquido, ranking
+                cnpj_fundo_classe, tp_fundo_classe, denominacao_social,
+                total_resgates, total_aportes, fluxo_liquido, percentual_fluxo_liquido
             )
             SELECT 
                 i.cnpj_fundo_classe,
                 i.tp_fundo_classe,
-                i.dt_comptc,
                 r.denominacao_social,
-                i.vl_total,
-                SUM(i.resg_dia) as total_resgates,
-                SUM(i.captc_dia) as total_aportes,
-                SUM(i.captc_dia - i.resg_dia) as fluxo_liquido,
+                SUM(COALESCE(i.resg_dia, 0)) as total_resgates,
+                SUM(COALESCE(i.captc_dia, 0)) as total_aportes,
+                SUM(COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) as fluxo_liquido,
                 CASE 
-                    WHEN i.vl_total > 0 THEN 
-                        (SUM(i.captc_dia - i.resg_dia) / i.vl_total) * 100
+                    WHEN MAX(i.vl_total) > 0 THEN 
+                        (SUM(COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) / MAX(i.vl_total)) * 100
                     ELSE 0 
-                END as percentual_fluxo_liquido,
-                ROW_NUMBER() OVER (ORDER BY SUM(i.captc_dia - i.resg_dia) DESC) as ranking
+                END as percentual_fluxo_liquido
             FROM INFORMACAO_DIARIA i
             LEFT JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
             WHERE i.dt_comptc BETWEEN :data_inicio AND :data_fim
               AND (i.resg_dia IS NOT NULL OR i.captc_dia IS NOT NULL)
-            GROUP BY i.cnpj_fundo_classe, i.tp_fundo_classe, r.denominacao_social, i.dt_comptc, i.vl_total
-            HAVING SUM(i.captc_dia - i.resg_dia) != 0
+            GROUP BY i.cnpj_fundo_classe, i.tp_fundo_classe, r.denominacao_social
+            HAVING SUM(COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) != 0
             ORDER BY fluxo_liquido DESC
         """)
         
