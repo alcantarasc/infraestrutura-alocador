@@ -105,30 +105,30 @@ def salvar_ranking_movimentacao():
         # Limpa dados antigos
         connection.execute(text("DELETE FROM RANKING_MOVIMENTACAO"))
         
-        # Query para obter o fluxo líquido por veículo único
+        # Query para obter o fluxo líquido por entrada individual
         query = text("""
             INSERT INTO RANKING_MOVIMENTACAO (
-                cnpj_fundo_classe, tp_fundo_classe, denominacao_social,
+                cnpj_fundo_classe, tp_fundo_classe, denominacao_social, dt_comptc,
                 total_resgates, total_aportes, fluxo_liquido, percentual_fluxo_liquido
             )
             SELECT 
                 i.cnpj_fundo_classe,
                 i.tp_fundo_classe,
                 r.denominacao_social,
-                SUM(COALESCE(i.resg_dia, 0)) as total_resgates,
-                SUM(COALESCE(i.captc_dia, 0)) as total_aportes,
-                SUM(COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) as fluxo_liquido,
+                i.dt_comptc,
+                COALESCE(i.resg_dia, 0) as total_resgates,
+                COALESCE(i.captc_dia, 0) as total_aportes,
+                COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0) as fluxo_liquido,
                 CASE 
-                    WHEN MAX(i.vl_total) > 0 THEN 
-                        (SUM(COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) / MAX(i.vl_total)) * 100
+                    WHEN i.vl_total > 0 THEN 
+                        ((COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) / i.vl_total) * 100
                     ELSE 0 
                 END as percentual_fluxo_liquido
             FROM INFORMACAO_DIARIA i
             LEFT JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
             WHERE i.dt_comptc BETWEEN :data_inicio AND :data_fim
               AND (i.resg_dia IS NOT NULL OR i.captc_dia IS NOT NULL)
-            GROUP BY i.cnpj_fundo_classe, i.tp_fundo_classe, r.denominacao_social
-            HAVING SUM(COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) != 0
+              AND (COALESCE(i.captc_dia, 0) - COALESCE(i.resg_dia, 0)) != 0
             ORDER BY fluxo_liquido DESC
         """)
         
