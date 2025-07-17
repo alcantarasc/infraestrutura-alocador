@@ -4,6 +4,7 @@ from sqlalchemy import create_engine, text
 from airflow.models import Variable
 from datetime import datetime, timedelta
 import logging
+import pandas as pd
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -89,7 +90,7 @@ def salvar_ranking_gestores():
         logger.info("Ranking de gestores salvo com sucesso")
 
 def salvar_ranking_movimentacao():
-    """Salva o ranking de movimentação na tabela RANKING_MOVIMENTACAO"""
+    """Salva o ranking de movimentação na tabela RANKING_MOVIMENTACAO usando pandas"""
     engine = create_engine(f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
     
     # Obtém a última data disponível
@@ -105,42 +106,74 @@ def salvar_ranking_movimentacao():
         # Limpa dados antigos
         connection.execute(text("DELETE FROM RANKING_MOVIMENTACAO"))
         
-        # Query para obter o ranking de movimentação
+        # Query simples para buscar os dados
         query = text("""
-            INSERT INTO RANKING_MOVIMENTACAO (
-                cnpj_fundo_classe, tp_fundo_classe, dt_comptc, denominacao_social,
-                vl_total, total_resgates, total_aportes, fluxo_liquido,
-                percentual_fluxo_liquido, ranking
-            )
             SELECT 
                 i.cnpj_fundo_classe,
                 i.tp_fundo_classe,
                 i.dt_comptc,
                 r.denominacao_social,
                 i.vl_total,
-                SUM(i.resg_dia) as total_resgates,
-                SUM(i.captc_dia) as total_aportes,
-                SUM(i.captc_dia - i.resg_dia) as fluxo_liquido,
-                CASE 
-                    WHEN i.vl_total > 0 THEN 
-                        (SUM(i.captc_dia - i.resg_dia) / i.vl_total) * 100
-                    ELSE 0 
-                END as percentual_fluxo_liquido,
-                ROW_NUMBER() OVER (ORDER BY SUM(i.captc_dia - i.resg_dia) DESC) as ranking
+                i.resg_dia,
+                i.captc_dia
             FROM INFORMACAO_DIARIA i
             LEFT JOIN REGISTRO_FUNDO r ON i.cnpj_fundo_classe = r.cnpj_fundo
             WHERE i.dt_comptc BETWEEN :data_inicio AND :data_fim
               AND (i.resg_dia IS NOT NULL OR i.captc_dia IS NOT NULL)
-            GROUP BY i.cnpj_fundo_classe, i.tp_fundo_classe, r.denominacao_social, i.dt_comptc, i.vl_total
-            HAVING SUM(i.captc_dia - i.resg_dia) != 0
-            ORDER BY fluxo_liquido DESC
         """)
         
-        connection.execute(query, {
+        # Executa a query e carrega os dados em um DataFrame
+        df = pd.read_sql(query, connection, params={
             'data_inicio': data_inicio,
             'data_fim': ultima_data
         })
-        logger.info(f"Ranking de movimentação salvo com sucesso para o período {data_inicio} a {ultima_data}")
+        
+        logger.info(f"Dados carregados: {len(df)} registros")
+        
+        if df.empty:
+            logger.warning("Nenhum dado encontrado para o período especificado")
+            return
+        
+        # Computação com pandas
+        df['fluxo_liquido'] = df['captc_dia'] - df['resg_dia']
+        
+        # Agrupa por fundo e calcula as métricas
+        df_agrupado = df.groupby(['cnpj_fundo_classe', 'tp_fundo_classe', 'denominacao_social']).agg({
+            'vl_total': 'first',  # Pega o primeiro valor (mais recente)
+            'resg_dia': 'sum',
+            'captc_dia': 'sum',
+            'fluxo_liquido': 'sum'
+        }).reset_index()
+        
+        # Calcula o percentual de fluxo líquido
+        df_agrupado['percentual_fluxo_liquido'] = (
+            df_agrupado['fluxo_liquido'] / df_agrupado['vl_total']
+        ) * 100
+        
+        # Filtra apenas registros com fluxo líquido diferente de zero
+        df_agrupado = df_agrupado[df_agrupado['fluxo_liquido'] != 0]
+        
+        # Ordena por fluxo líquido decrescente e adiciona ranking
+        df_agrupado = df_agrupado.sort_values('fluxo_liquido', ascending=False)
+        df_agrupado['ranking'] = range(1, len(df_agrupado) + 1)
+        
+        # Renomeia as colunas para corresponder à tabela
+        df_agrupado = df_agrupado.rename(columns={
+            'resg_dia': 'total_resgates',
+            'captc_dia': 'total_aportes'
+        })
+        
+        # Seleciona apenas as colunas necessárias na ordem correta
+        df_final = df_agrupado[[
+            'cnpj_fundo_classe', 'tp_fundo_classe', 'denominacao_social',
+            'vl_total', 'total_resgates', 'total_aportes', 'fluxo_liquido',
+            'percentual_fluxo_liquido', 'ranking'
+        ]]
+        
+        # Insere os dados na tabela
+        df_final.to_sql('RANKING_MOVIMENTACAO', connection, if_exists='append', index=False)
+        
+        logger.info(f"Ranking de movimentação salvo com sucesso: {len(df_final)} registros para o período {data_inicio} a {ultima_data}")
 
 def salvar_datas_informacao_diaria():
     """Salva as datas disponíveis na tabela DATAS_INFORMACAO_DIARIA"""
