@@ -5,6 +5,7 @@ from airflow.models import Variable
 from datetime import datetime, timedelta
 import logging
 import pandas as pd
+import numpy as np
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -145,11 +146,16 @@ def salvar_ranking_movimentacao():
             'fluxo_liquido': 'sum'
         }).reset_index()
         
-        # Calcula o percentual de fluxo líquido
-        df_agrupado['percentual_fluxo_liquido'] = (
-            df_agrupado['fluxo_liquido'] / df_agrupado['vl_total']
-        ) * 100
+        # Calcula o percentual de fluxo líquido com validação
+        df_agrupado['percentual_fluxo_liquido'] = np.where(
+            df_agrupado['vl_total'] > 0,
+            (df_agrupado['fluxo_liquido'] / df_agrupado['vl_total']) * 100,
+            0
+        )
         
+        # Limita os valores ao range do NUMERIC(10, 2) (-99999999.99 a 99999999.99)
+        df_agrupado['percentual_fluxo_liquido'] = df_agrupado['percentual_fluxo_liquido'].clip(-99999999.99, 99999999.99)
+
         # Filtra apenas registros com fluxo líquido diferente de zero
         df_agrupado = df_agrupado[df_agrupado['fluxo_liquido'] != 0]
         
