@@ -104,7 +104,7 @@ def salvar_ranking_movimentacao():
     
     with engine.begin() as connection:
         # Limpa dados antigos
-        connection.execute(text("DELETE FROM RANKING_MOVIMENTACAO"))
+        connection.execute(text("DELETE FROM ranking_movimentacao"))
         
         # Query simples para buscar os dados
         query = text("""
@@ -171,7 +171,7 @@ def salvar_ranking_movimentacao():
         ]]
         
         # Insere os dados na tabela
-        df_final.to_sql('RANKING_MOVIMENTACAO', connection, if_exists='append', index=False)
+        df_final.to_sql('ranking_movimentacao', connection, if_exists='append', index=False)
         
         logger.info(f"Ranking de movimentação salvo com sucesso: {len(df_final)} registros para o período {data_inicio} a {ultima_data}")
 
