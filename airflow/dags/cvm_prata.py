@@ -104,13 +104,10 @@ def salvar_ranking_movimentacao():
     with engine.begin() as connection:
         # Limpa dados antigos
         connection.execute(text("DELETE FROM RANKING_MOVIMENTACAO"))
+        logger.info("Dados antigos removidos da tabela RANKING_MOVIMENTACAO")
         
-        # Query para obter o fluxo líquido por entrada individual
-        query = text("""
-            INSERT INTO RANKING_MOVIMENTACAO (
-                cnpj_fundo_classe, tp_fundo_classe, denominacao_social, dt_comptc,
-                total_resgates, total_aportes, fluxo_liquido, percentual_fluxo_liquido
-            )
+        # Query para obter os dados para inserção em batch
+        select_query = text("""
             SELECT 
                 i.cnpj_fundo_classe,
                 i.tp_fundo_classe,
@@ -132,11 +129,56 @@ def salvar_ranking_movimentacao():
             ORDER BY fluxo_liquido DESC
         """)
         
-        connection.execute(query, {
+        # Executa a query para obter os dados
+        result = connection.execute(select_query, {
             'data_inicio': data_inicio,
             'data_fim': ultima_data
         })
-        logger.info(f"Ranking de movimentação salvo com sucesso para o período {data_inicio} a {ultima_data}")
+        
+        # Configuração do batch
+        batch_size = 1000
+        total_inserted = 0
+        batch_count = 0
+        
+        # Query de inserção
+        insert_query = text("""
+            INSERT INTO RANKING_MOVIMENTACAO (
+                cnpj_fundo_classe, tp_fundo_classe, denominacao_social, dt_comptc,
+                total_resgates, total_aportes, fluxo_liquido, percentual_fluxo_liquido
+            ) VALUES (:cnpj_fundo_classe, :tp_fundo_classe, :denominacao_social, :dt_comptc,
+                     :total_resgates, :total_aportes, :fluxo_liquido, :percentual_fluxo_liquido)
+        """)
+        
+        # Processa os dados em batch
+        batch_data = []
+        for row in result:
+            batch_data.append({
+                'cnpj_fundo_classe': row.cnpj_fundo_classe,
+                'tp_fundo_classe': row.tp_fundo_classe,
+                'denominacao_social': row.denominacao_social,
+                'dt_comptc': row.dt_comptc,
+                'total_resgates': row.total_resgates,
+                'total_aportes': row.total_aportes,
+                'fluxo_liquido': row.fluxo_liquido,
+                'percentual_fluxo_liquido': row.percentual_fluxo_liquido
+            })
+            
+            # Quando o batch está cheio, insere
+            if len(batch_data) >= batch_size:
+                connection.execute(insert_query, batch_data)
+                total_inserted += len(batch_data)
+                batch_count += 1
+                logger.info(f"Batch {batch_count} inserido: {len(batch_data)} registros. Total inserido: {total_inserted}")
+                batch_data = []
+        
+        # Insere o último batch (se houver dados restantes)
+        if batch_data:
+            connection.execute(insert_query, batch_data)
+            total_inserted += len(batch_data)
+            batch_count += 1
+            logger.info(f"Último batch inserido: {len(batch_data)} registros. Total inserido: {total_inserted}")
+        
+        logger.info(f"Ranking de movimentação salvo com sucesso. Total de {total_inserted} registros inseridos em {batch_count} batches para o período {data_inicio} a {ultima_data}")
 
 def salvar_datas_informacao_diaria():
     """Salva as datas disponíveis na tabela DATAS_INFORMACAO_DIARIA"""
