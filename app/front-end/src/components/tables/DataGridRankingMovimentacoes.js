@@ -142,15 +142,6 @@ const DataGridRankingMovimentacoes = ({ periodo, title }) => {
           />
         ),
       },
-      {
-        accessorKey: 'dt_comptc',
-        header: 'Data',
-        size: 120,
-        Cell: ({ cell }) =>
-          cell.getValue()
-            ? new Date(cell.getValue()).toLocaleDateString('pt-BR')
-            : '',
-      },
     ],
     []
   );

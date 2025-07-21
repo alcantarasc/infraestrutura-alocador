@@ -200,6 +200,214 @@ def salvar_datas_informacao_diaria():
         connection.execute(query)
         logger.info("Datas de informação diária salvas com sucesso")
 
+def salvar_quantidade_fundo_unico_com_acoes():
+    """Salva a quantidade de fundos únicos com ações na tabela QUANTIDADE_FUNDO_UNICO_COM_ACOES"""
+    engine = create_engine(f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
+    
+    with engine.begin() as connection:
+        
+        connection.execute(text("DELETE FROM quantidade_fundo_unico_com_acoes"))
+        
+        query = text("""
+            INSERT INTO quantidade_fundo_unico_com_acoes (dt_comptc, quantidade_fundo_unico_com_acoes)
+            SELECT 
+                dt_comptc,
+                COUNT(DISTINCT CONCAT(cnpj_fundo_classe, tp_fundo_classe)) as quantidade_fundo_unico_com_acoes
+            FROM composicao_carteira_demais_codificados
+            WHERE tp_aplic = 'Ações'
+            GROUP BY dt_comptc
+            ORDER BY dt_comptc DESC
+        """)
+        
+        connection.execute(query)
+        logger.info("Quantidade de fundos únicos com ações salva com sucesso")
+
+def salvar_composicao_carteira_agrupada():
+    """Salva a composição da carteira agrupada na tabela COMPOSICAO_CARTEIRA_AGRUPADA"""
+    engine = create_engine(f'postgresql+psycopg2://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_IP}:{DATABASE_PORT}/screening_cvm')
+    
+    with engine.begin() as connection:
+        # Limpa dados antigos
+        connection.execute(text("DELETE FROM composicao_carteira_agrupada"))
+        
+        # Query unificada e agrupada (sem variação)
+        query = text("""
+            WITH composicao_unificada AS (
+                -- Títulos Públicos SELIC
+                SELECT 
+                    cnpj_fundo_classe,
+                    dt_comptc,
+                    tp_fundo_classe,
+                    tp_aplic,
+                    tp_ativo,
+                    denom_social as denominacao_social,
+                    cd_selic as codigo_ativo,
+                    cd_isin,
+                    vl_merc_pos_final,
+                    qt_pos_final,
+                    'TITULO_PUBLICO_SELIC' as origem_tabela
+                FROM composicao_carteira_titulo_publico_selic
+                WHERE cd_selic IS NOT NULL AND cd_selic != ''
+                
+                UNION ALL
+                
+                -- Depósitos a Prazo IF
+                SELECT 
+                    cnpj_fundo_classe,
+                    dt_comptc,
+                    tp_fundo_classe,
+                    tp_aplic,
+                    tp_ativo,
+                    denom_social as denominacao_social,
+                    cnpj_emissor as codigo_ativo,
+                    NULL as cd_isin,
+                    vl_merc_pos_final,
+                    qt_pos_final,
+                    'DEPOSITO_PRAZO_IF' as origem_tabela
+                FROM composicao_carteira_deposito_prazo_if
+                WHERE cnpj_emissor IS NOT NULL AND cnpj_emissor != ''
+                
+                UNION ALL
+                
+                -- Fundos
+                SELECT 
+                    cnpj_fundo_classe,
+                    dt_comptc,
+                    tp_fundo_classe,
+                    tp_aplic,
+                    tp_ativo,
+                    denom_social as denominacao_social,
+                    cnpj_fundo_classe_cota as codigo_ativo,
+                    NULL as cd_isin,
+                    vl_merc_pos_final,
+                    qt_pos_final,
+                    'FUNDOS' as origem_tabela
+                FROM composicao_carteira_fundos
+                WHERE cnpj_fundo_classe_cota IS NOT NULL AND cnpj_fundo_classe_cota != ''
+                
+                UNION ALL
+                
+                -- Demais Codificados (Ações, etc.)
+                SELECT 
+                    cnpj_fundo_classe,
+                    dt_comptc,
+                    tp_fundo_classe,
+                    tp_aplic,
+                    tp_ativo,
+                    denom_social as denominacao_social,
+                    cd_ativo as codigo_ativo,
+                    cd_isin,
+                    vl_merc_pos_final,
+                    qt_pos_final,
+                    'DEMAIS_CODIFICADOS' as origem_tabela
+                FROM composicao_carteira_demais_codificados
+                WHERE cd_ativo IS NOT NULL AND cd_ativo != ''
+                
+                UNION ALL
+                
+                -- Investimento Exterior
+                SELECT 
+                    cnpj_fundo_classe,
+                    dt_comptc,
+                    tp_fundo_classe,
+                    tp_aplic,
+                    tp_ativo,
+                    denom_social as denominacao_social,
+                    cd_ativo_bv_merc as codigo_ativo,
+                    NULL as cd_isin,
+                    vl_merc_pos_final,
+                    qt_pos_final,
+                    'INVESTIMENTO_EXTERIOR' as origem_tabela
+                FROM composicao_carteira_investimento_exterior
+                WHERE cd_ativo_bv_merc IS NOT NULL AND cd_ativo_bv_merc != ''
+                
+                UNION ALL
+                
+                -- Swaps
+                SELECT 
+                    cnpj_fundo_classe,
+                    dt_comptc,
+                    tp_fundo_classe,
+                    tp_aplic,
+                    tp_ativo,
+                    denom_social as denominacao_social,
+                    cd_swap as codigo_ativo,
+                    NULL as cd_isin,
+                    vl_merc_pos_final,
+                    qt_pos_final,
+                    'SWAPS' as origem_tabela
+                FROM composicao_carteira_swaps
+                WHERE cd_swap IS NOT NULL AND cd_swap != ''
+                
+                UNION ALL
+                
+                -- Não Codificados
+                SELECT 
+                    cnpj_fundo_classe,
+                    dt_comptc,
+                    tp_fundo_classe,
+                    tp_aplic,
+                    tp_ativo,
+                    denom_social as denominacao_social,
+                    cpf_cnpj_emissor as codigo_ativo,
+                    NULL as cd_isin,
+                    vl_merc_pos_final,
+                    qt_pos_final,
+                    'NAO_CODIFICADOS' as origem_tabela
+                FROM composicao_carteira_nao_codificados
+                WHERE cpf_cnpj_emissor IS NOT NULL AND cpf_cnpj_emissor != ''
+                
+                UNION ALL
+                
+                -- Títulos Privados
+                SELECT 
+                    cnpj_fundo_classe,
+                    dt_comptc,
+                    tp_fundo_classe,
+                    tp_aplic,
+                    tp_ativo,
+                    denom_social as denominacao_social,
+                    cpf_cnpj_emissor as codigo_ativo,
+                    NULL as cd_isin,
+                    vl_merc_pos_final,
+                    qt_pos_final,
+                    'TITULO_PRIVADO' as origem_tabela
+                FROM composicao_carteira_titulo_privado
+                WHERE cpf_cnpj_emissor IS NOT NULL AND cpf_cnpj_emissor != ''
+            )
+            INSERT INTO composicao_carteira_agrupada (
+                cnpj_fundo_classe,
+                dt_comptc,
+                tp_fundo_classe,
+                tp_aplic,
+                tp_ativo,
+                denominacao_social,
+                codigo_ativo,
+                cd_isin,
+                origem_tabela,
+                vl_merc_pos_final,
+                qt_pos_final
+            )
+            SELECT 
+                cnpj_fundo_classe,
+                dt_comptc,
+                tp_fundo_classe,
+                tp_aplic,
+                tp_ativo,
+                denominacao_social,
+                codigo_ativo,
+                cd_isin,
+                origem_tabela,
+                SUM(vl_merc_pos_final) as vl_merc_pos_final,
+                SUM(qt_pos_final) as qt_pos_final
+            FROM composicao_unificada
+            GROUP BY 
+                cnpj_fundo_classe, dt_comptc, tp_fundo_classe, tp_aplic, tp_ativo, denominacao_social, codigo_ativo, cd_isin, origem_tabela
+        """)
+        
+        connection.execute(query)
+        logger.info("Composição da carteira agrupada salva com sucesso")
+
 # Definindo as tasks
 task_ranking_gestores = PythonOperator(
     task_id='salvar_ranking_gestores',
@@ -219,5 +427,17 @@ task_datas_informacao_diaria = PythonOperator(
     dag=dag,
 )
 
+task_quantidade_fundo_unico_com_acoes = PythonOperator(
+    task_id='salvar_quantidade_fundo_unico_com_acoes',
+    python_callable=salvar_quantidade_fundo_unico_com_acoes,
+    dag=dag,
+)
+
+task_composicao_carteira_agrupada = PythonOperator(
+    task_id='salvar_composicao_carteira_agrupada',
+    python_callable=salvar_composicao_carteira_agrupada,
+    dag=dag,
+)
+
 # Definindo a ordem de execução (todas podem executar em paralelo)
-[task_ranking_gestores, task_ranking_movimentacao, task_datas_informacao_diaria] 
+[task_ranking_gestores, task_ranking_movimentacao, task_datas_informacao_diaria, task_quantidade_fundo_unico_com_acoes, task_composicao_carteira_agrupada] 

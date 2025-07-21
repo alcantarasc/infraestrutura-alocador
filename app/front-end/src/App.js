@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 import Ranking from './pages/Ranking';
 import Cadastro from './pages/Cadastro';
+import Acoes from './pages/Acoes';
 
 import TopMenu from './components/TopMenu';
 import Basket from './pages/Basket';
@@ -18,6 +19,7 @@ function App() {
             <Route path="/ranking" element={<Ranking />} />
             <Route path="/basket" element={<Basket />} />
             <Route path="/cadastro" element={<Cadastro />} />
+            <Route path="/acoes" element={<Acoes />} />
             <Route path="/" element={<Navigate to="/ranking" replace />} />
           </Routes>
         </div>

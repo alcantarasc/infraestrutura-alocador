@@ -6,6 +6,7 @@ function getCurrentTab(pathname) {
   if (pathname.startsWith('/ranking')) return 0;
   if (pathname.startsWith('/basket')) return 1;
   if (pathname.startsWith('/cadastro')) return 2;
+  if (pathname.startsWith('/acoes')) return 3;
   return 0;
 }
 
@@ -23,6 +24,7 @@ function TopMenu({ breadcrumbs }) {
             <Tab label="Geral" component={Link} to="/ranking" />
             <Tab label="Baskets" component={Link} to="/basket" />
             <Tab label="Cadastro" component={Link} to="/cadastro" />
+            <Tab label="Ações" component={Link} to="/acoes" />
           </Tabs>
         </Box>
         {breadcrumbs && (

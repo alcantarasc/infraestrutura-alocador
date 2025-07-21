@@ -457,7 +457,35 @@ def create_tables():
     """
     
 
+    quantidade_por_data_fundo_unico_com_acoes_sql = """
+    CREATE TABLE IF NOT EXISTS quantidade_fundo_unico_com_acoes (
+        dt_comptc DATE UNIQUE NOT NULL,
+        quantidade_fundo_unico_com_acoes INTEGER,
+        dt_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_quantidade_por_data_fundo_unico_com_acoes_dt_comptc ON quantidade_fundo_unico_com_acoes (dt_comptc);
+    """
+
+    composicao_carteira_agrupada_sql = """
+    CREATE TABLE IF NOT EXISTS composicao_carteira_agrupada (
+        cnpj_fundo_classe VARCHAR(20),
+        dt_comptc DATE,
+        tp_fundo_classe VARCHAR(15),
+        tp_aplic VARCHAR(150),
+        tp_ativo VARCHAR(150),
+        denominacao_social VARCHAR(500),
+        codigo_ativo VARCHAR(100),
+        cd_isin VARCHAR(12),
+        vl_merc_pos_final NUMERIC(17, 2),
+        qt_pos_final INTEGER,
+        origem_tabela VARCHAR(50),
+        dt_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_composicao_carteira_agrupada_cnpj_fundo_classe ON composicao_carteira_agrupada (cnpj_fundo_classe, tp_fundo_classe, dt_comptc);
+    """
+
     with engine.connect() as connection:
+        # Camada bronze
         connection.execute(create_informacao_cadastral_sql)
         connection.execute(create_informacao_diaria_sql)
         connection.execute(create_composicao_carteira_titulo_publico_selic_sql)
@@ -471,9 +499,13 @@ def create_tables():
         connection.execute(create_registro_fundo_sql)
         connection.execute(registro_classe_sql)
         connection.execute(registro_subclasse_sql)
+
+        # Camada prata
         connection.execute(ranking_gestores_sql)
         connection.execute(ranking_movimentacao_sql)
         connection.execute(datas_informacao_diaria_sql)
+        connection.execute(quantidade_por_data_fundo_unico_com_acoes_sql)
+        connection.execute(composicao_carteira_agrupada_sql)
 
 create_tables_task = PythonOperator(
     task_id='cria_tabelas_cvm',
