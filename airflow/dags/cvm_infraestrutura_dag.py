@@ -477,7 +477,7 @@ def create_tables():
         codigo_ativo VARCHAR(100),
         cd_isin VARCHAR(12),
         vl_merc_pos_final NUMERIC(17, 2),
-        qt_pos_final INTEGER,
+        qt_pos_final BIGINT,
         origem_tabela VARCHAR(50),
         dt_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
