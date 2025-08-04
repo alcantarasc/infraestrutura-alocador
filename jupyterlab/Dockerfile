@@ -1,7 +1,7 @@
 FROM jupyter/minimal-notebook:latest
 
 # Argumento para a senha do Jupyter
-ARG JUPYTER_PASSWORD=dinheirimBORA
+ARG JUPYTER_PASSWORD=
 
 USER root
 # Instala ipython (para o utilitário de terminal) e jupyter_server (caso não esteja completo)
